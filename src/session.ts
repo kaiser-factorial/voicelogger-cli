@@ -6,6 +6,10 @@ import { transcribePcm } from "./transcriber.js";
 import type { TranscriptSegment, VoiceLogSession } from "./types.js";
 import { EnergyVad } from "./vad.js";
 
+// Per-process counter folded into session ids to guarantee uniqueness even for
+// multiple recorders constructed within the same millisecond.
+let idSeq = 0;
+
 export interface SessionOptions {
   projectId?: string;
   /** Called as each transcribed segment is appended (for live display). */
@@ -69,13 +73,21 @@ export class SessionRecorder {
   }
 
   async stop(): Promise<VoiceLogSession> {
+    // source.stop() resolves once the source is fully closed (for the mic, after
+    // ffmpeg flushes its remaining PCM), so every frame has already been enqueued.
     await this.source.stop();
 
     const tail = this.vad.flush();
     if (tail) this.enqueueWindow(tail.pcm, tail.startMs, tail.endMs);
 
-    // Drain the transcription queue before finalizing.
-    await this.queue;
+    // Drain the transcription queue before finalizing. enqueueWindow reassigns
+    // this.queue, so loop until it stops growing rather than awaiting a snapshot —
+    // otherwise a late-arriving window could land after the index is written.
+    let q: Promise<void>;
+    do {
+      q = this.queue;
+      await q;
+    } while (q !== this.queue);
 
     this.session.endedAt = new Date().toISOString();
     this.session.status = "raw";
@@ -84,26 +96,27 @@ export class SessionRecorder {
   }
 
   private enqueueWindow(pcm: Buffer, startMs: number, endMs: number): void {
-    this.queue = this.queue.then(async () => {
-      let text = "";
-      try {
-        text = await transcribePcm(pcm);
-      } catch (err) {
-        process.stderr.write(`[transcribe] ${(err as Error).message}\n`);
-        return;
-      }
-      if (!text) return;
+    this.queue = this.queue
+      .then(async () => {
+        const text = await transcribePcm(pcm);
+        if (!text) return;
 
-      const seg: TranscriptSegment = {
-        index: this.segmentIndex++,
-        startMs,
-        endMs,
-        text,
-      };
-      this.segments.push(seg);
-      await appendFile(this.session.rawPath, `${text}\n\n`);
-      this.onSegment?.(seg);
-    });
+        const seg: TranscriptSegment = {
+          index: this.segmentIndex++,
+          startMs,
+          endMs,
+          text,
+        };
+        this.segments.push(seg);
+        await appendFile(this.session.rawPath, `${text}\n\n`);
+        this.onSegment?.(seg);
+      })
+      // A failure in one window (transcription, the disk append, or the live
+      // onSegment callback) must not crash recording or poison the queue for the
+      // rest of the session — log it and keep the chain resolved.
+      .catch((err) => {
+        process.stderr.write(`[segment] ${(err as Error).message}\n`);
+      });
   }
 
   private rawHeader(): string {
@@ -127,7 +140,12 @@ export class SessionRecorder {
   }
 
   private static makeId(): string {
-    // e.g. 2026-06-24T16-30-05 — filesystem-safe, sortable.
-    return new Date().toISOString().replace(/:/g, "-").replace(/\.\d+Z$/, "Z");
+    // e.g. 2026-06-24T16-30-05-123Z-k3f9-0 — filesystem-safe and time-sortable.
+    // Keep milliseconds, add a random suffix, and a per-process counter so two
+    // sessions started in the same instant (e.g. a library caller batching files)
+    // never collide and overwrite each other's raw/<id>.md and sessions/<id>.json.
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const rand = Math.random().toString(36).slice(2, 6);
+    return `${stamp}-${rand}-${(idSeq++).toString(36)}`;
   }
 }

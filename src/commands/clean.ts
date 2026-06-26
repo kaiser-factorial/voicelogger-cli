@@ -8,12 +8,12 @@ import { firstPositional } from "./util.js";
 /**
  * Clean a raw transcript with the LLM and write cleaned/<id>.md.
  *
- *   voicelog clean <session|latest>
+ *   voicelogger clean <session|latest>
  */
 export async function cleanCommand(args: string[]): Promise<void> {
   const id = firstPositional(args);
   if (!id) {
-    console.error("usage: voicelog clean <session|latest>");
+    console.error("usage: voicelogger clean <session|latest>");
     process.exit(1);
   }
 
@@ -62,6 +62,6 @@ export async function cleanCommand(args: string[]): Promise<void> {
   console.log(`\n✓ cleaned → ${cleanedPath}`);
   console.log(`  summary: ${summary}`);
   if (!session.projectId) {
-    console.log(`\nNext: voicelog link ${session.id} <projectId>`);
+    console.log(`\nNext: voicelogger link ${session.id} <projectId>`);
   }
 }

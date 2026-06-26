@@ -7,13 +7,13 @@ import { optValue, positionals } from "./util.js";
  * --no-ledger, also drops a `ledger note` (and a `touch` with --touch) via the
  * ledger-cli — the CLI-to-CLI bridge from the plan.
  *
- *   voicelog link <session|latest> <projectId> [--touch] [--reason <r>] [--note <n>] [--no-ledger]
+ *   voicelogger link <session|latest> <projectId> [--touch] [--reason <r>] [--note <n>] [--no-ledger]
  */
 export async function linkCommand(args: string[]): Promise<void> {
-  const [id, projectId] = positionals(args);
+  const [id, projectId] = positionals(args, ["--note", "--reason"]);
   if (!id || !projectId) {
     console.error(
-      "usage: voicelog link <session|latest> <projectId> [--touch] [--reason <r>] [--note <n>] [--no-ledger]",
+      "usage: voicelogger link <session|latest> <projectId> [--touch] [--reason <r>] [--note <n>] [--no-ledger]",
     );
     process.exit(1);
   }

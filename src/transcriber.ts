@@ -45,8 +45,27 @@ function runWhisper(wavPath: string): Promise<string> {
     proc.stderr.on("data", (d: Buffer) => (err += d.toString()));
     proc.on("error", reject);
     proc.on("close", (code) => {
-      if (code === 0) resolve(out.trim());
+      if (code === 0) resolve(stripNonSpeechMarkers(out));
       else reject(new Error(`whisper-cli exited ${code}: ${err.trim() || "(no stderr)"}`));
     });
   });
+}
+
+/**
+ * Drop whisper.cpp non-speech markers — lines that are entirely a bracketed or
+ * parenthesized token such as `[BLANK_AUDIO]`, `[ Silence ]`, or `(buzzing)`.
+ * The energy VAD windows always include trailing silence and can fire on
+ * transient noise, so these markers would otherwise be written verbatim into the
+ * transcript and fed to the LLM cleaning pass. Lines with real speech (even
+ * alongside a marker) are preserved.
+ */
+export function stripNonSpeechMarkers(text: string): string {
+  return text
+    .split("\n")
+    .filter((line) => {
+      const t = line.trim();
+      return t !== "" && !/^[[(][^\])]*[\])]$/.test(t);
+    })
+    .join("\n")
+    .trim();
 }

@@ -34,6 +34,7 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "download-model": "tsx src/cli.ts download-model",
+    "test": "node --import tsx --test tests/*.test.ts",
     "smoke": "tsx scripts/smoke.ts",
     "prepare": "tsc",
     "prepublishOnly": "tsc"

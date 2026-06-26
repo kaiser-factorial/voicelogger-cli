@@ -6,12 +6,12 @@ import { firstPositional } from "./util.js";
  * Print a session's transcript. Defaults to the cleaned version if it exists,
  * otherwise raw.
  *
- *   voicelog show <session|latest> [--raw | --cleaned]
+ *   voicelogger show <session|latest> [--raw | --cleaned]
  */
 export async function showCommand(args: string[]): Promise<void> {
   const id = firstPositional(args);
   if (!id) {
-    console.error("usage: voicelog show <session|latest> [--raw | --cleaned]");
+    console.error("usage: voicelogger show <session|latest> [--raw | --cleaned]");
     process.exit(1);
   }
 
@@ -26,7 +26,7 @@ export async function showCommand(args: string[]): Promise<void> {
     target = session.rawPath;
   } else if (args.includes("--cleaned")) {
     if (!session.cleanedPath) {
-      console.error(`no cleaned version — run: voicelog clean ${session.id}`);
+      console.error(`no cleaned version — run: voicelogger clean ${session.id}`);
       process.exit(20);
     }
     target = session.cleanedPath;

@@ -7,7 +7,7 @@ import { optValue } from "./util.js";
  * Record from the laptop mic until Enter/Ctrl-C. Writes raw/<id>.md and the
  * session index; live transcript prints to the terminal.
  *
- *   voicelog record [--project <id>]
+ *   voicelogger record [--project <id>]
  */
 export async function recordCommand(args: string[]): Promise<void> {
   const projectId = optValue(args, "--project", "-p");
@@ -32,12 +32,21 @@ export async function recordCommand(args: string[]): Promise<void> {
     if (stopped) return;
     stopped = true;
     console.log("\n■ stopping — finishing transcription…");
-    const session = await recorder.stop();
-    console.log("\n✓ done");
-    console.log(`  raw:   ${session.rawPath}`);
-    console.log(`  index: ${config.sessionsDir}/${session.id}.json`);
-    console.log(`\nNext: voicelog clean ${session.id}`);
-    process.exit(0);
+    // finish() is a detached event listener, so its rejection can't be caught by
+    // cli.ts — handle it here or it becomes a process-killing unhandled rejection.
+    try {
+      const session = await recorder.stop();
+      console.log("\n✓ done");
+      console.log(`  raw:   ${session.rawPath}`);
+      console.log(`  index: ${config.sessionsDir}/${session.id}.json`);
+      console.log(`\nNext: voicelogger clean ${session.id}`);
+      process.exit(0);
+    } catch (err) {
+      console.error(
+        `\n✗ failed to finalize recording: ${err instanceof Error ? err.message : err}`,
+      );
+      process.exit(1);
+    }
   };
 
   process.stdin.resume();

@@ -59,6 +59,12 @@ export class EnergyVad {
     this.energyThreshold = opts.energyThreshold ?? 0.012;
     // 16-bit mono → 2 bytes/sample.
     this.frameBytes = Math.floor((this.sampleRate * this.frameMs) / 1000) * 2;
+    if (this.frameBytes < 2) {
+      // A zero-length frame would make feed() loop forever (offset never advances).
+      throw new RangeError(
+        `EnergyVad: frame too small (sampleRate=${this.sampleRate}, frameMs=${this.frameMs}); need ≥ 1 sample per frame`,
+      );
+    }
   }
 
   /** Push PCM; returns any windows completed by this chunk. */

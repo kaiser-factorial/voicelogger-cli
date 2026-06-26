@@ -21,6 +21,16 @@ const dataDir = process.env.VOICELOG_DIR ?? path.join(home, "Projects", "voice_l
 const MODEL_FILE = "ggml-base.en.bin";
 
 /**
+ * Parse a positive integer from an env var, falling back when it's unset, empty,
+ * non-numeric, or <= 0. (`Number(process.env.X ?? "4")` would pass NaN through for
+ * e.g. `WHISPER_THREADS=auto`, which then reaches whisper-cli / the API call.)
+ */
+function posInt(value: string | undefined, fallback: number): number {
+  const n = Number.parseInt(value ?? "", 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+/**
  * Resolve the Whisper model path. Precedence:
  *   1. WHISPER_MODEL (explicit override)
  *   2. <packageRoot>/models/<file> when present (source checkout that already
@@ -73,11 +83,11 @@ export const config: Config = {
   whisperBin: process.env.WHISPER_BIN ?? "whisper-cli",
   ffmpegBin: process.env.FFMPEG_BIN ?? "ffmpeg",
   micDevice: process.env.MIC_DEVICE ?? ":0",
-  whisperThreads: Number(process.env.WHISPER_THREADS ?? "4"),
+  whisperThreads: posInt(process.env.WHISPER_THREADS, 4),
   format: { sampleRate: 16000, channels: 1 },
 
   anthropicModel: process.env.CLAUDE_MODEL ?? "claude-opus-4-8",
-  cleanMaxTokens: Number(process.env.CLEAN_MAX_TOKENS ?? "16000"),
+  cleanMaxTokens: posInt(process.env.CLEAN_MAX_TOKENS, 16000),
   glossaryPath: process.env.GLOSSARY_PATH ?? path.join(packageRoot, "cleaning", "glossary.md"),
   templatePath: process.env.TEMPLATE_PATH ?? path.join(packageRoot, "cleaning", "template.md"),
 

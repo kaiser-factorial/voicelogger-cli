@@ -74,10 +74,16 @@ export class LaptopMicSource implements VoiceSource {
   }
 
   async stop(): Promise<void> {
-    if (this.proc && !this.proc.killed && !this.stopping) {
-      this.stopping = true;
-      // SIGINT lets ffmpeg flush its buffers cleanly.
-      this.proc.kill("SIGINT");
-    }
+    const proc = this.proc;
+    if (!proc || this.stopping) return;
+    this.stopping = true;
+    // Already exited (e.g. ffmpeg crashed) — nothing to wait for.
+    if (proc.exitCode !== null || proc.signalCode !== null) return;
+    // SIGINT lets ffmpeg flush its remaining PCM to stdout (delivered to onFrame
+    // before 'close'); resolve only once it has fully closed so no frames are lost.
+    await new Promise<void>((resolve) => {
+      proc.once("close", () => resolve());
+      proc.kill("SIGINT");
+    });
   }
 }

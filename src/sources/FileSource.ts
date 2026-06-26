@@ -83,7 +83,9 @@ function stripWavHeader(buf: Buffer): Buffer {
       const id = buf.toString("ascii", i, i + 4);
       const size = buf.readUInt32LE(i + 4);
       if (id === "data") return buf.subarray(i + 8, i + 8 + size);
-      i += 8 + size;
+      // RIFF chunks are word-aligned: an odd `size` is followed by a pad byte
+      // that isn't counted in `size`. Skipping it would mis-read the next chunk.
+      i += 8 + size + (size & 1);
     }
     return buf.subarray(44);
   }
