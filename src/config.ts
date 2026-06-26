@@ -2,6 +2,8 @@ import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseCleanMode } from "./cleanMode.js";
+import type { CleanMode } from "./types.js";
 
 // Package root, stable whether running from src/ (tsx) or dist/ (built).
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -65,6 +67,8 @@ export interface Config {
   cleanMaxTokens: number;
   glossaryPath: string;
   templatePath: string;
+  /** How `record` handles cleaning on finish (VOICELOGGER_AUTOCLEAN). Default "auto". */
+  autoCleanMode: CleanMode;
 
   // --- ledger-cli bridge (the CLI-to-CLI link) ---
   /** The `ledger` binary used by `link`. Defaults to `ledger` on PATH; set LEDGER_BIN to point at a build. */
@@ -90,6 +94,7 @@ export const config: Config = {
   cleanMaxTokens: posInt(process.env.CLEAN_MAX_TOKENS, 16000),
   glossaryPath: process.env.GLOSSARY_PATH ?? path.join(packageRoot, "cleaning", "glossary.md"),
   templatePath: process.env.TEMPLATE_PATH ?? path.join(packageRoot, "cleaning", "template.md"),
+  autoCleanMode: parseCleanMode(process.env.VOICELOGGER_AUTOCLEAN) ?? "auto",
 
   // Defaults to `ledger` on PATH so the bridge is portable. Point LEDGER_BIN at a
   // local build (e.g. ../ledger-cli/ledger) when the binary isn't installed globally.

@@ -1,19 +1,19 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { config } from "../config.js";
-import { cleanTranscript } from "../cleaner.js";
-import { readRawBody, resolveSession, writeSession } from "../store.js";
+import { runClean } from "../cleanSession.js";
+import { renderMarkdown } from "../markdown.js";
+import { resolveSession } from "../store.js";
 import { firstPositional } from "./util.js";
 
 /**
- * Clean a raw transcript with the LLM and write cleaned/<id>.md.
+ * Clean a raw transcript with the LLM and write cleaned/<id>.md, then print the
+ * edited markdown styled for the terminal.
  *
- *   voicelogger clean <session|latest>
+ *   voicelogger clean <session|latest> [--plain]
  */
 export async function cleanCommand(args: string[]): Promise<void> {
   const id = firstPositional(args);
   if (!id) {
-    console.error("usage: voicelogger clean <session|latest>");
+    console.error("usage: voicelogger clean <session|latest> [--plain]");
     process.exit(1);
   }
 
@@ -23,44 +23,23 @@ export async function cleanCommand(args: string[]): Promise<void> {
     process.exit(20);
   }
 
-  const body = await readRawBody(session);
-  if (!body) {
-    console.error("raw transcript is empty — nothing to clean");
-    process.exit(40);
+  console.log(`cleaning ${session.id} with ${config.anthropicModel}…`);
+  let cleaned;
+  try {
+    cleaned = await runClean(session);
+  } catch (err) {
+    // empty raw body is a usage error (exit 40); anything else bubbles up
+    if (err instanceof Error && err.message.includes("nothing to clean")) {
+      console.error(err.message);
+      process.exit(40);
+    }
+    throw err;
   }
 
-  const [glossary, template] = await Promise.all([
-    readFile(config.glossaryPath, "utf8").catch(() => ""),
-    readFile(config.templatePath, "utf8").catch(() => ""),
-  ]);
-
-  console.log(`cleaning ${session.id} with ${config.anthropicModel}…`);
-  const { summary, cleaned } = await cleanTranscript(body, { glossary, template });
-
-  await mkdir(config.cleanedDir, { recursive: true });
-  const cleanedPath = path.join(config.cleanedDir, `${session.id}.md`);
-  const header = [
-    `# Cleaned voice log — ${session.id}`,
-    "",
-    `> ${summary}`,
-    "",
-    `- source: ${session.source}`,
-    `- project: ${session.projectId ?? "(unlinked)"}`,
-    `- cleaned from: ${session.rawPath}`,
-    "",
-    "---",
-    "",
-    "",
-  ].join("\n");
-  await writeFile(cleanedPath, header + cleaned.trim() + "\n");
-
-  session.cleanedPath = cleanedPath;
-  session.status = "cleaned";
-  session.summary = summary;
-  await writeSession(session);
-
-  console.log(`\n✓ cleaned → ${cleanedPath}`);
-  console.log(`  summary: ${summary}`);
+  console.log(`\n✓ cleaned → ${cleaned.cleanedPath}\n`);
+  // --plain forces no color; otherwise renderMarkdown auto-detects the TTY.
+  const color = args.includes("--plain") ? false : undefined;
+  console.log(renderMarkdown(cleaned.markdown, { color }));
   if (!session.projectId) {
     console.log(`\nNext: voicelogger link ${session.id} <projectId>`);
   }

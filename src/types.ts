@@ -7,6 +7,9 @@ export type VoiceSourceKind = "laptop" | "wearabllm";
 
 export type SessionStatus = "recording" | "raw" | "cleaned";
 
+/** How `record` handles the LLM cleaning pass when a recording finishes. */
+export type CleanMode = "auto" | "prompt" | "off";
+
 export interface AudioFormat {
   sampleRate: number; // 16000
   channels: number; // 1 (mono)

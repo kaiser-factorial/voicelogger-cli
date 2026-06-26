@@ -49,8 +49,10 @@ npm run voicelogger -- --help     # run via tsx, or `npm run build` then `node d
 ## Usage
 
 ```bash
-voicelogger record                       # record until Enter/Ctrl-C
+voicelogger record                       # record, then auto-clean + show the edited markdown
 voicelogger record --project rrg         # tag the session with a project id
+voicelogger record --no-clean            # keep raw only; skip the cleanup pass
+voicelogger record --clean prompt        # ask before cleaning this recording
 voicelogger list                         # all sessions, newest first
 voicelogger show latest                  # print the latest transcript (cleaned if present)
 voicelogger show latest --raw            # force the raw transcript
@@ -66,7 +68,27 @@ macOS prompts once for microphone permission for the terminal running `record`. 
 live transcript prints as each utterance is recognized; files land under `VOICELOG_DIR`
 (default `~/Projects/voice_logs`).
 
-`clean` requires `ANTHROPIC_API_KEY` (or `ANTHROPIC_AUTH_TOKEN`) in the environment.
+## Cleanup — the edited markdown
+
+Every session keeps two files: `raw/<id>.md` (the untouched transcript, never overwritten)
+and `cleaned/<id>.md` (an LLM-edited pass that removes disfluencies, fixes domain terms via
+the shared glossary, and organizes the content into the template). When a recording finishes,
+`voicelogger` runs the cleanup and prints the edited markdown **styled inline** in the terminal.
+
+The cleanup pass requires `ANTHROPIC_API_KEY` (or `ANTHROPIC_AUTH_TOKEN`); without it,
+`record` keeps the raw transcript and points you to run `voicelogger clean` later.
+
+Control when it runs:
+
+| | |
+|---|---|
+| `VOICELOGGER_AUTOCLEAN=auto` | clean automatically on finish (**default**) |
+| `VOICELOGGER_AUTOCLEAN=prompt` | ask `Clean this recording now? [Y/n]` each time |
+| `VOICELOGGER_AUTOCLEAN=off` | keep raw only; clean manually with `voicelogger clean <id>` |
+
+Per-recording overrides: `record --no-clean`, `record --clean`, `record --clean prompt`.
+`voicelogger show <id>` renders the cleaned version styled (raw is shown verbatim); add
+`--plain` for unstyled markdown.
 
 ## Use with The Ledger (or any project tracker)
 
@@ -114,6 +136,7 @@ const session = await rec.stop();
 | `WHISPER_THREADS` | `4` | whisper threads |
 | `FFMPEG_BIN` | `ffmpeg` | ffmpeg binary |
 | `MIC_DEVICE` | `:0` | avfoundation input (`ffmpeg -f avfoundation -list_devices true -i ""` to list) |
+| `VOICELOGGER_AUTOCLEAN` | `auto` | cleanup on `record` finish: `auto` \| `prompt` \| `off` |
 | `CLAUDE_MODEL` | `claude-opus-4-8` | Anthropic model for `clean` (e.g. `claude-haiku-4-5` for speed/cost) |
 | `CLEAN_MAX_TOKENS` | `16000` | max output tokens for `clean` |
 | `GLOSSARY_PATH` / `TEMPLATE_PATH` | bundled `cleaning/*` | cleaning glossary + template |
@@ -136,6 +159,9 @@ src/
   transcriber.ts           whisper-cli on one window → text
   session.ts               orchestration → raw + index files
   cleaner.ts               LLM cleaning pass (Anthropic)
+  cleanSession.ts          runClean: raw → cleaned/<id>.md + index update
+  cleanMode.ts             auto/prompt/off resolution (env + flags)
+  markdown.ts              styled-terminal markdown renderer
   store.ts                 list/resolve/read sessions on disk
   ledger.ts                bridge to the `ledger` CLI
   commands/                record · clean · list · show · link · download-model
