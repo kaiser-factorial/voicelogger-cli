@@ -75,8 +75,17 @@ and `cleaned/<id>.md` (an LLM-edited pass that removes disfluencies, fixes domai
 the shared glossary, and organizes the content into the template). When a recording finishes,
 `voicelogger` runs the cleanup and prints the edited markdown **styled inline** in the terminal.
 
-The cleanup pass requires `ANTHROPIC_API_KEY` (or `ANTHROPIC_AUTH_TOKEN`); without it,
-`record` keeps the raw transcript and points you to run `voicelogger clean` later.
+The cleanup pass needs an Anthropic API key. Save it once with the wizard (it's entered
+hidden and stored at `~/.voicelogger/config.json` with `600` perms):
+
+```bash
+voicelogger config        # prompts for your key without echoing it; saved per-machine
+voicelogger config show   # show config (key masked) — handy to confirm it's set
+```
+
+Or set `ANTHROPIC_API_KEY` (or `ANTHROPIC_AUTH_TOKEN`) in your environment — an env var
+always overrides the saved key. Without any key, `record` keeps the raw transcript and
+points you to run `voicelogger clean` later.
 
 Control when it runs:
 
@@ -163,8 +172,9 @@ src/
   cleanMode.ts             auto/prompt/off resolution (env + flags)
   markdown.ts              styled-terminal markdown renderer
   store.ts                 list/resolve/read sessions on disk
+  userConfig.ts            per-machine config (~/.voicelogger/config.json, API key)
   ledger.ts                bridge to the `ledger` CLI
-  commands/                record · clean · list · show · link · download-model
+  commands/                record · clean · list · show · link · config · download-model
 ```
 
 Everything downstream of `VoiceSource` is source-agnostic, so a network/device source

@@ -22,6 +22,13 @@ export { pcmToWav, pcmDurationMs } from "./wav.js";
 
 export { cleanTranscript, type CleanResult, type CleanInputs } from "./cleaner.js";
 export { runClean, hasAnthropicAuth, type CleanOutcome } from "./cleanSession.js";
+export {
+  loadUserConfig,
+  saveUserConfig,
+  configFilePath,
+  applyStoredEnv,
+  type UserConfig,
+} from "./userConfig.js";
 export { resolveAutoCleanMode, parseCleanMode } from "./cleanMode.js";
 export { renderMarkdown, type RenderOptions } from "./markdown.js";
 

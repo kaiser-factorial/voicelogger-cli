@@ -1,0 +1,37 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { mkdtempSync, statSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+// Point the config home at a throwaway dir and clear any inherited Anthropic env
+// before importing (each test file is its own process).
+process.env.VOICELOGGER_HOME = mkdtempSync(path.join(os.tmpdir(), "vl-cfg-"));
+delete process.env.ANTHROPIC_API_KEY;
+delete process.env.ANTHROPIC_AUTH_TOKEN;
+
+const { saveUserConfig, loadUserConfig, configFilePath, applyStoredEnv } = await import(
+  "../src/userConfig.js"
+);
+
+test("saveUserConfig / loadUserConfig round-trip", () => {
+  saveUserConfig({ anthropicApiKey: "sk-ant-test123" });
+  assert.equal(loadUserConfig().anthropicApiKey, "sk-ant-test123");
+});
+
+test("saved config file is not group/other readable (0600)", () => {
+  const mode = statSync(configFilePath()).mode & 0o777;
+  assert.equal(mode & 0o077, 0); // owner-only
+});
+
+test("applyStoredEnv populates ANTHROPIC_API_KEY when none is set", () => {
+  delete process.env.ANTHROPIC_API_KEY;
+  applyStoredEnv();
+  assert.equal(process.env.ANTHROPIC_API_KEY, "sk-ant-test123");
+});
+
+test("applyStoredEnv does not override an existing env key", () => {
+  process.env.ANTHROPIC_API_KEY = "sk-ant-fromenv";
+  applyStoredEnv();
+  assert.equal(process.env.ANTHROPIC_API_KEY, "sk-ant-fromenv");
+});

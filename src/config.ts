@@ -4,6 +4,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseCleanMode } from "./cleanMode.js";
 import type { CleanMode } from "./types.js";
+import { applyStoredEnv } from "./userConfig.js";
+
+// Load a key saved via `voicelogger config` into the environment (if none is set)
+// before anything reads Anthropic credentials.
+applyStoredEnv();
 
 // Package root, stable whether running from src/ (tsx) or dist/ (built).
 const here = path.dirname(fileURLToPath(import.meta.url));
