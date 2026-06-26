@@ -29,6 +29,7 @@ export {
   applyStoredEnv,
   type UserConfig,
 } from "./userConfig.js";
+export { setupApiKey } from "./setupKey.js";
 export { resolveAutoCleanMode, parseCleanMode } from "./cleanMode.js";
 export { renderMarkdown, type RenderOptions } from "./markdown.js";
 

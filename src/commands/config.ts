@@ -1,6 +1,6 @@
-import * as readline from "node:readline";
 import { config } from "../config.js";
-import { configFilePath, loadUserConfig, saveUserConfig } from "../userConfig.js";
+import { setupApiKey } from "../setupKey.js";
+import { configFilePath, loadUserConfig } from "../userConfig.js";
 
 /**
  * Manage per-machine config (saved at ~/.voicelogger/config.json).
@@ -44,41 +44,11 @@ async function runWizard(): Promise<void> {
   }
 
   console.log("voicelogger setup — your key is stored locally and never shown as you type.\n");
-  const key = (await promptHidden("Anthropic API key: ")).trim();
-  if (!key) {
+  const file = await setupApiKey();
+  if (!file) {
     console.error("no key entered — nothing saved.");
     process.exit(1);
   }
-  if (!key.startsWith("sk-ant-")) {
-    console.log("note: that doesn't look like an sk-ant-… key — saving anyway.");
-  }
-
-  const file = saveUserConfig({ anthropicApiKey: key });
   console.log(`\n✓ saved to ${file} (permissions 600)`);
   console.log("  voicelogger will use it automatically. A shell ANTHROPIC_API_KEY still wins.");
-}
-
-/** Read a line from a TTY without echoing what is typed (like a password prompt). */
-function promptHidden(prompt: string): Promise<string> {
-  return new Promise((resolve) => {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-      terminal: true,
-    });
-    let muted = false;
-    // Suppress echo of typed characters once muted; the prompt itself is written
-    // before muting, so it still shows.
-    (rl as unknown as { _writeToOutput: (s: string) => void })._writeToOutput = (s) => {
-      if (!muted) process.stdout.write(s);
-    };
-    process.stdout.write(prompt);
-    muted = true;
-    rl.question("", (answer) => {
-      muted = false;
-      rl.close();
-      process.stdout.write("\n");
-      resolve(answer);
-    });
-  });
 }

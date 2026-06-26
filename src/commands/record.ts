@@ -1,9 +1,10 @@
-import * as readline from "node:readline/promises";
 import { resolveAutoCleanMode } from "../cleanMode.js";
 import { hasAnthropicAuth, runClean } from "../cleanSession.js";
 import { config } from "../config.js";
 import { renderMarkdown } from "../markdown.js";
+import { confirm } from "../prompt.js";
 import { SessionRecorder } from "../session.js";
+import { setupApiKey } from "../setupKey.js";
 import { LaptopMicSource } from "../sources/LaptopMicSource.js";
 import { readRawBody } from "../store.js";
 import type { VoiceLogSession } from "../types.js";
@@ -79,9 +80,17 @@ async function maybeAutoClean(session: VoiceLogSession, args: string[]): Promise
     return;
   }
   if (!hasAnthropicAuth()) {
-    console.log("\n⚠ ANTHROPIC_API_KEY not set — skipping cleanup.");
-    console.log(`  Set it, then run: voicelogger clean ${session.id}`);
-    return;
+    console.log("\n⚠ No Anthropic API key set — it's needed to clean the transcript.");
+    if (await confirm("  Set one now? [Y/n] ")) {
+      const file = await setupApiKey();
+      if (file) console.log(`✓ key saved to ${file}`);
+    }
+    if (!hasAnthropicAuth()) {
+      console.log(
+        `\nKept the raw transcript. Add a key (voicelogger config), then: voicelogger clean ${session.id}`,
+      );
+      return;
+    }
   }
   if (mode === "prompt" && !(await confirm("\nClean this recording now? [Y/n] "))) {
     console.log(nextHint);
@@ -96,17 +105,5 @@ async function maybeAutoClean(session: VoiceLogSession, args: string[]): Promise
   } catch (err) {
     console.warn(`\n⚠ cleanup failed: ${err instanceof Error ? err.message : err}`);
     console.warn(`  the raw transcript is safe — retry with: voicelogger clean ${session.id}`);
-  }
-}
-
-/** Yes/no prompt defaulting to yes; non-interactive stdin proceeds with the default. */
-async function confirm(question: string): Promise<boolean> {
-  if (!process.stdin.isTTY) return true;
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  try {
-    const answer = (await rl.question(question)).trim().toLowerCase();
-    return answer === "" || answer === "y" || answer === "yes";
-  } finally {
-    rl.close();
   }
 }
