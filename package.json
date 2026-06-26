@@ -1,0 +1,72 @@
+{
+  "name": "voicelogger-cli",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Local Whisper voice-logger CLI: record → transcribe → LLM-clean → link to projects.",
+  "bin": {
+    "voicelogger": "dist/cli.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "cleaning",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "voicelogger": "tsx src/cli.ts",
+    "dev": "tsx src/cli.ts",
+    "record": "tsx src/cli.ts record",
+    "clean": "tsx src/cli.ts clean",
+    "list": "tsx src/cli.ts list",
+    "show": "tsx src/cli.ts show",
+    "link": "tsx src/cli.ts link",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "download-model": "tsx src/cli.ts download-model",
+    "smoke": "tsx scripts/smoke.ts",
+    "prepare": "tsc",
+    "prepublishOnly": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kaiser-factorial/voicelogger-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kaiser-factorial/voicelogger-cli/issues"
+  },
+  "homepage": "https://github.com/kaiser-factorial/voicelogger-cli#readme",
+  "keywords": [
+    "whisper",
+    "whisper.cpp",
+    "voice",
+    "transcription",
+    "speech-to-text",
+    "voice-log",
+    "cli",
+    "anthropic"
+  ],
+  "license": "MIT",
+  "allowScripts": {
+    "esbuild@0.28.1": true
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.106.0",
+    "zod": "^4.4.3"
+  }
+}

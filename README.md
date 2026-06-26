@@ -1,96 +1,166 @@
-# voicelog-service
+# voicelogger-cli
 
-Local Whisper transcription service for The Ledger's voice-logger
-(step 1 of `docs/AGENT_AND_VOICELOG_PLAN.md`).
+`voicelogger` — a local, offline voice-logger CLI. Record from your mic, transcribe
+with **whisper.cpp**, optionally LLM-**clean** the transcript, and **link** the result
+to a project tracker (e.g. [The Ledger](https://github.com/kaiser-factorial)).
 
-Captures audio from a `VoiceSource`, segments it with a simple energy VAD,
-transcribes each window with **whisper.cpp**, and writes a two-part record:
-
-- `raw/<session>.md` — the untouched transcript (never overwritten)
-- `sessions/<session>.json` — the `VoiceLogSession` index (becomes the Firestore doc later)
-
-The cleaned pass (`cleaned/<session>.md`) is intentionally **not** done here — it's
-the first job for the Phase-1 agent (Cowork / the ledger-cli MCP server).
-
-## Architecture
+Everything runs locally; nothing is uploaded except the optional `clean` pass (which
+calls the Anthropic API). Transcripts are written as plain Markdown so agents/tools can
+read them directly.
 
 ```
-VoiceSource ──PCM──▶ EnergyVad ──window──▶ whisper-cli ──text──▶ raw/<id>.md
-   │                                                              sessions/<id>.json
-   ├─ LaptopMicSource  (MVP)   ffmpeg avfoundation → 16 kHz mono PCM
-   └─ WearabLLMSource  (later) device streams PCM to the same pipeline
+mic ──▶ energy VAD ──▶ whisper.cpp ──▶ raw/<id>.md  ──(clean)──▶ cleaned/<id>.md
+                                       sessions/<id>.json (index)   │
+                                                                    └─(link)─▶ ledger note/touch
 ```
 
-Everything downstream of `VoiceSource` is source-agnostic, so the WearabLLM
-device wires in later without touching VAD, transcription, storage, or UI.
+## Install
+
+**As a CLI** (the `voicelogger` command):
+
+```bash
+# from GitHub (builds on install — no npm publish needed)
+npm install -g github:kaiser-factorial/voicelogger-cli
+
+# or once published to npm
+npm install -g voicelogger-cli
+npx voicelogger-cli --help
+```
+
+**From source** (for development):
+
+```bash
+git clone git@github.com:kaiser-factorial/voicelogger-cli.git
+cd voicelogger-cli
+npm install
+npm run voicelogger -- --help     # run via tsx, or `npm run build` then `node dist/cli.js`
+```
 
 ## Prerequisites
 
-- **ffmpeg** — `brew install ffmpeg` (mic capture via avfoundation)
-- **whisper.cpp** — `brew install whisper-cpp` (provides `whisper-cli`)
 - **Node 20+**
-- A model file (see below)
+- **ffmpeg** — `brew install ffmpeg` (mic capture via avfoundation, macOS)
+- **whisper.cpp** — `brew install whisper-cpp` (provides `whisper-cli`)
+- **A model** — `voicelogger download-model` (≈141 MB → `~/.voicelogger/models/ggml-base.en.bin`)
 
-## Setup
+> Mic capture currently targets macOS (`ffmpeg -f avfoundation`). The rest of the
+> pipeline is platform-agnostic.
 
-```bash
-cd ledger/voicelog-service
-npm install
-npm run download-model          # → models/ggml-base.en.bin (~141 MB)
-```
-
-## Record (standalone — no UI needed)
+## Usage
 
 ```bash
-npm run record                  # Enter (or Ctrl-C) to stop
-npm run record -- --project rrg # tag the session with a project id
+voicelogger record                       # record until Enter/Ctrl-C
+voicelogger record --project rrg         # tag the session with a project id
+voicelogger list                         # all sessions, newest first
+voicelogger show latest                  # print the latest transcript (cleaned if present)
+voicelogger show latest --raw            # force the raw transcript
+voicelogger clean latest                 # LLM-clean the latest raw transcript
+voicelogger link latest rrg              # attach to project "rrg" (+ ledger note)
+voicelogger download-model               # fetch the Whisper model
+voicelogger version
 ```
 
-macOS will prompt once for microphone permission for the terminal running it.
-Live transcript prints to the terminal as each utterance is recognized; the
-files land under `VOICELOG_DIR` (default `~/Projects/voice_logs`).
+A `<session>` argument can be a full id, a unique id prefix, or `latest`.
+
+macOS prompts once for microphone permission for the terminal running `record`. The
+live transcript prints as each utterance is recognized; files land under `VOICELOG_DIR`
+(default `~/Projects/voice_logs`).
+
+`clean` requires `ANTHROPIC_API_KEY` (or `ANTHROPIC_AUTH_TOKEN`) in the environment.
+
+## Use with The Ledger (or any project tracker)
+
+`voicelogger link <session> <projectId>` records the link locally and — unless
+`--no-ledger` — shells out to the `ledger` CLI to drop a `ledger note` (and a `touch`
+with `--touch`), tying debug narration to project status.
+
+By default it calls `ledger` on your `PATH`. If the binary lives elsewhere, point
+`LEDGER_BIN` at it:
+
+```bash
+export LEDGER_BIN="$HOME/Projects/ledger_root/ledger-cli/ledger"
+voicelogger link latest rrg --touch --reason "voice debug session"
+```
+
+If the binary is missing or auth fails, the **local link is still saved** and a warning
+is printed — `voicelogger` never loses your data over a bridge failure.
+
+## Use as a library in another project
+
+The package also ships a typed library entry, so you can embed the pipeline instead of
+shelling out:
+
+```ts
+import { SessionRecorder, LaptopMicSource, cleanTranscript } from "voicelogger-cli";
+
+const rec = new SessionRecorder(new LaptopMicSource(), {
+  projectId: "rrg",
+  onSegment: (s) => console.log(s.text),
+});
+await rec.start();
+// … later …
+const session = await rec.stop();
+```
 
 ## Configuration (all optional, via env vars)
 
 | Var | Default | Purpose |
 |-----|---------|---------|
 | `VOICELOG_DIR` | `~/Projects/voice_logs` | where `raw/`, `cleaned/`, `sessions/` live |
-| `WHISPER_MODEL` | `models/ggml-base.en.bin` | ggml model path |
+| `VOICELOGGER_HOME` | `~/.voicelogger` | per-user home for the model and other assets |
+| `WHISPER_MODEL` | `~/.voicelogger/models/ggml-base.en.bin` | ggml model path (in-tree `models/` wins if present) |
+| `WHISPER_MODEL_URL` | HF `ggml-base.en.bin` | source for `download-model` |
 | `WHISPER_BIN` | `whisper-cli` | whisper.cpp binary |
 | `WHISPER_THREADS` | `4` | whisper threads |
 | `FFMPEG_BIN` | `ffmpeg` | ffmpeg binary |
 | `MIC_DEVICE` | `:0` | avfoundation input (`ffmpeg -f avfoundation -list_devices true -i ""` to list) |
+| `CLAUDE_MODEL` | `claude-opus-4-8` | Anthropic model for `clean` (e.g. `claude-haiku-4-5` for speed/cost) |
+| `CLEAN_MAX_TOKENS` | `16000` | max output tokens for `clean` |
+| `GLOSSARY_PATH` / `TEMPLATE_PATH` | bundled `cleaning/*` | cleaning glossary + template |
+| `LEDGER_BIN` | `ledger` | the `ledger` binary used by `link` |
+| `ANTHROPIC_API_KEY` | — | required by `clean` |
 
-## Layout
+## Architecture
 
 ```
 src/
-  types.ts                 VoiceLogSession, TranscriptSegment
+  cli.ts                   command dispatch + version/help
+  index.ts                 public library surface
   config.ts                paths + binaries (env-overridable)
+  types.ts                 VoiceLogSession, TranscriptSegment
   sources/VoiceSource.ts   the capture-source abstraction
-  sources/LaptopMicSource.ts
+  sources/LaptopMicSource.ts   ffmpeg avfoundation → 16 kHz mono PCM
+  sources/FileSource.ts        deterministic WAV source (tests)
   wav.ts                   PCM → WAV header
   vad.ts                   energy VAD / windowing
   transcriber.ts           whisper-cli on one window → text
   session.ts               orchestration → raw + index files
-  cli.ts                   standalone record entrypoint
+  cleaner.ts               LLM cleaning pass (Anthropic)
+  store.ts                 list/resolve/read sessions on disk
+  ledger.ts                bridge to the `ledger` CLI
+  commands/                record · clean · list · show · link · download-model
 ```
+
+Everything downstream of `VoiceSource` is source-agnostic, so a network/device source
+(e.g. a wearable streaming PCM) can wire in later without touching VAD, transcription,
+storage, or linking.
 
 ## Test (no mic, deterministic)
 
 ```bash
-# generate a known clip and run the full pipeline against it
-say -o /tmp/vl_test.aiff "the ledger voice logger pipeline is now working end to end"
+say -o /tmp/vl_test.aiff "the voicelogger pipeline is now working end to end"
 ffmpeg -y -i /tmp/vl_test.aiff -ac 1 -ar 16000 -f wav /tmp/vl_test.wav
 npm run smoke -- /tmp/vl_test.wav     # asserts a non-empty transcript + raw status
 ```
 
-`FileSource` (a WAV-file `VoiceSource`) drives `SessionRecorder` exactly like
-the mic would, into a throwaway temp dir.
+`FileSource` (a WAV-file `VoiceSource`) drives `SessionRecorder` exactly like the mic
+would, into a throwaway temp dir.
 
-## Not yet (next steps)
+## Roadmap
 
-- Streaming partials over a WebSocket for the live transcription view (Voice Logs UI).
-- `WearabLLMSource` (network PCM ingest to the same pipeline).
-- Cleaned pass (`cleaned/<session>.md`) via the Phase-1 ledger-cli MCP agent.
-# voicelogger-cli
+See [BRAINSTORM.md](BRAINSTORM.md) — notably a `--app <name>` flag to register multiple
+project targets and auto-push saved logs into each app's own `voicelogs/` directory.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
