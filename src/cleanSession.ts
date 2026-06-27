@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { config } from "./config.js";
 import { cleanTranscript } from "./cleaner.js";
@@ -48,10 +48,20 @@ export async function runClean(session: VoiceLogSession): Promise<CleanOutcome> 
   const { title, summary, cleaned } = await cleanTranscript(body, { glossary, template });
 
   await mkdir(config.cleanedDir, { recursive: true });
-  // First clean → a friendly name from the LLM title + date (e.g.
-  // test_with_music_27June2026.md); re-clean → keep the existing file/name.
-  const cleanedPath =
-    session.cleanedPath ?? uniqueCleanedPath(cleanedBaseName(title, session.startedAt));
+  // Name the cleaned file from the LLM title + date (e.g. test_with_music_27June2026.md).
+  // Keep an already-friendly name on re-clean; but if it's still the legacy timestamp name
+  // (<id>.md), migrate to the friendly name and drop the stale file.
+  const isLegacyName =
+    session.cleanedPath && path.basename(session.cleanedPath) === `${session.id}.md`;
+  let cleanedPath: string;
+  if (session.cleanedPath && !isLegacyName) {
+    cleanedPath = session.cleanedPath;
+  } else {
+    cleanedPath = uniqueCleanedPath(cleanedBaseName(title, session.startedAt));
+    if (session.cleanedPath && session.cleanedPath !== cleanedPath) {
+      await rm(session.cleanedPath, { force: true });
+    }
+  }
   const header = [
     `# ${title}`,
     "",
