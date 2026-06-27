@@ -101,6 +101,19 @@ Verified: 61 tests (5 new platform tests), build, doctor mic line, env override 
 Did NOT actually test Linux/Windows capture (no such machines here) — that's the documented
 next step; defaults there are best-guess standard ffmpeg inputs, clearly marked experimental.
 
+### 7. CLI interface cleanup (user request, 2026-06-27) — DONE
+The flat `--help` had grown messy (unaligned, options crammed per line, `link` wrapping, a
+stale top doc-comment, no per-command help). Rewrote `cli.ts` around a single **command
+registry** that drives both dispatch and help:
+- Top-level `--help`: commands grouped (Record / Browse / Integrate / Setup), aligned,
+  with options moved out of the summary lines.
+- Per-command help: `voicelogger <cmd> --help` / `-h` / `help <cmd>` prints usage + options.
+- Unknown command → message + help, exit 1. `version` / `-v` unchanged.
+- Command **names unchanged** (no breaking muscle memory / scripts); in-command missing-arg
+  usage strings still fire.
+Verified: build + 61 tests; exercised --help, `<cmd> --help`, `help <cmd>`, `-h`, unknown
+(exit 1), version, and a real run.
+
 ## Status / what's committed
 6 autonomous commits this session: `doctor`, `list --json`, `app` (+ the 3 prior feature
 commits). All local on `main`, ahead of `origin/main`. typecheck + build + 49 tests + the
