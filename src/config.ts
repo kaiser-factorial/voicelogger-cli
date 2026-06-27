@@ -23,8 +23,12 @@ const home = os.homedir();
 const userHome = process.env.VOICELOGGER_HOME ?? path.join(home, ".voicelogger");
 
 // Transcripts live on the filesystem (see AGENT_AND_VOICELOG_PLAN.md "Storage").
-// Default to ~/Projects/voice_logs; override with VOICELOG_DIR.
-const dataDir = process.env.VOICELOG_DIR ?? path.join(home, "Projects", "voice_logs");
+// Precedence: VOICELOG_DIR env → saved config (set via `voicelogger config dir <path>`) →
+// the historic default. Existing users keep their data without doing anything.
+const dataDir =
+  process.env.VOICELOG_DIR ??
+  loadUserConfig().dataDir ??
+  path.join(home, "Projects", "voice_logs");
 
 const MODEL_FILE = "ggml-base.en.bin";
 

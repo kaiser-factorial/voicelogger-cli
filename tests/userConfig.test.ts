@@ -44,3 +44,12 @@ test("ledgerBin round-trips and can be cleared with undefined", () => {
   saveUserConfig({ ledgerBin: undefined });
   assert.equal(loadUserConfig().ledgerBin, undefined);
 });
+
+test("dataDir round-trips and clears with undefined", () => {
+  saveUserConfig({ dataDir: "/var/voicelogs" });
+  assert.equal(loadUserConfig().dataDir, "/var/voicelogs");
+  // earlier fields survive the merge
+  assert.equal(loadUserConfig().anthropicApiKey, "sk-ant-test123");
+  saveUserConfig({ dataDir: undefined });
+  assert.equal(loadUserConfig().dataDir, undefined);
+});

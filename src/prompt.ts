@@ -13,6 +13,18 @@ export function confirm(question: string, defaultYes = true): Promise<boolean> {
   });
 }
 
+/** Read a single line from a TTY (visible). Non-interactive stdin → empty string. */
+export function promptLine(prompt: string): Promise<string> {
+  if (!process.stdin.isTTY) return Promise.resolve("");
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    rl.question(prompt, (answer) => {
+      rl.close();
+      resolve(answer);
+    });
+  });
+}
+
 /** Read a line from a TTY without echoing what is typed (password-style). */
 export function promptHidden(prompt: string): Promise<string> {
   return new Promise((resolve) => {

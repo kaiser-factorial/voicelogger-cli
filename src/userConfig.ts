@@ -12,6 +12,8 @@ export interface UserConfig {
   anthropicApiKey?: string;
   /** Path to a project-tracker CLI (e.g. The Ledger) that `link` notifies. Optional. */
   ledgerBin?: string;
+  /** Where to save logs. Falls back to the code default (~/Projects/voice_logs). */
+  dataDir?: string;
 }
 
 function userHome(): string {

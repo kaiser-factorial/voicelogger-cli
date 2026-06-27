@@ -145,6 +145,26 @@ old reference table. Per-command help (`voicelogger <cmd> --help`) keeps the lon
   pipes / `NO_COLOR`).
 Verified: 64 tests, plain-text + TTY-color output, per-command --help unchanged.
 
+### 10. Configurable logs directory (user request, 2026-06-27) — DONE
+The wizard now offers a logs-dir step, and there's a `config dir <path>` command for
+changing it later.
+- `userConfig.ts`: added `dataDir?` field (round-trips, clears with `undefined`).
+- `config.ts`: precedence `VOICELOG_DIR` env → saved → existing default `~/Projects/voice_logs`
+  (kept the historic default so existing users aren't moved).
+- `prompt.ts`: added a non-secret `promptLine` (returns "" off-TTY).
+- `commands/config.ts`:
+  - Wizard chains a dir step after the API-key step: "Where should your voice logs save?
+    (press Enter to keep the default: <current>)". Suggesting the *current effective* dir
+    means Enter is always a no-op for "keep what I have."
+  - New `config dir <path>` (with `~` expansion) sets the dir; `config dir default` resets.
+    Notes that the dir will be created on first record and old logs aren't moved.
+  - `config show` now attributes the data-dir source (`from environment` / `from saved config` /
+    `default`), matching how the API key already showed its source.
+- `cli.ts`: `config --help` documents the new `dir` subcommand.
+Tests: dataDir round-trip + clear (userConfig.test.ts); saved-dataDir flows through to
+config and the derived raw/cleaned/sessions paths (new dataDirConfig.test.ts). 66 total.
+Verified live: set/show/reset/env-wins, Corina's real config untouched (still `(default)`).
+
 ## Status / what's committed
 6 autonomous commits this session: `doctor`, `list --json`, `app` (+ the 3 prior feature
 commits). All local on `main`, ahead of `origin/main`. typecheck + build + 49 tests + the

@@ -1,20 +1,30 @@
 import { existsSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { config } from "../config.js";
+import { promptLine } from "../prompt.js";
 import { setupApiKey } from "../setupKey.js";
 import { configFilePath, loadUserConfig, saveUserConfig } from "../userConfig.js";
 
 /**
  * Manage per-machine config (saved at ~/.voicelogger/config.json).
  *
- *   voicelogger config                 interactive wizard — set the Anthropic API key
+ *   voicelogger config                 interactive wizard (API key + where to save logs)
  *   voicelogger config show            show current config (key masked)
+ *   voicelogger config dir <path>      set where logs save
  *   voicelogger config ledger <path>   connect a project tracker CLI ("off" to disconnect)
  */
 export async function configCommand(args: string[]): Promise<void> {
   if (args[0] === "show") return showConfig();
+  if (args[0] === "dir") return configDir(args.slice(1));
   if (args[0] === "ledger") return configLedger(args.slice(1));
   return runWizard();
+}
+
+/** Resolve a user-typed path: expand a leading `~`, then make it absolute. */
+function resolvePath(p: string): string {
+  const expanded = p.startsWith("~") ? p.replace(/^~/, os.homedir()) : p;
+  return path.resolve(expanded);
 }
 
 /** Show last 4 chars only, never the full secret. */
@@ -34,13 +44,40 @@ function showConfig(): void {
   else keyLine = "(not set — run: voicelogger config)";
 
   const tracker = config.ledgerEnabled ? config.ledgerBin : "(not connected)";
+  // Source-of-truth for the data dir, mirroring the resolution in config.ts.
+  const savedDir = loadUserConfig().dataDir;
+  const envDir = process.env.VOICELOG_DIR;
+  let dirLine = `${config.dataDir}`;
+  if (envDir) dirLine += "  (from environment)";
+  else if (savedDir) dirLine += "  (from saved config)";
+  else dirLine += "  (default)";
 
   console.log(`config file:      ${configFilePath()}`);
   console.log(`anthropic key:    ${keyLine}`);
-  console.log(`data dir:         ${config.dataDir}`);
+  console.log(`data dir:         ${dirLine}`);
   console.log(`model:            ${config.modelPath}`);
   console.log(`auto-clean:       ${config.autoCleanMode}`);
   console.log(`project tracker:  ${tracker}`);
+}
+
+/** Set (or reset) where logs are saved. Use `default` to drop the saved override. */
+function configDir(rest: string[]): void {
+  const value = rest[0];
+  if (!value) {
+    console.log(`logs save to: ${config.dataDir}`);
+    console.log("usage: voicelogger config dir <path>  (or 'default' to reset)");
+    return;
+  }
+  if (value === "default") {
+    saveUserConfig({ dataDir: undefined });
+    console.log("✓ reset to the default logs directory.");
+    return;
+  }
+  const abs = resolvePath(value);
+  saveUserConfig({ dataDir: abs });
+  console.log(`✓ logs will save to ${abs}`);
+  if (!existsSync(abs)) console.log("  (it'll be created on your next recording.)");
+  console.log("  existing logs in the old location aren't moved.");
 }
 
 /** Connect / disconnect a project-tracker CLI (e.g. The Ledger) that `link` notifies. */
@@ -75,12 +112,28 @@ async function runWizard(): Promise<void> {
     process.exit(1);
   }
 
-  console.log("voicelogger setup — your key is stored locally and never shown as you type.\n");
+  console.log("voicelogger setup — your settings are saved locally.\n");
+
+  // Step 1 — API key (input is hidden).
   const file = await setupApiKey();
   if (!file) {
     console.error("no key entered — nothing saved.");
     process.exit(1);
   }
-  console.log(`\n✓ saved to ${file} (permissions 600)`);
-  console.log("  voicelogger will use it automatically. A shell ANTHROPIC_API_KEY still wins.");
+  console.log(`✓ API key saved to ${file} (permissions 600)`);
+
+  // Step 2 — where logs save. Suggest the current effective dir as default so
+  // hitting Enter is always a no-op for "keep what I have."
+  console.log("\nWhere should your voice logs save?");
+  console.log(`(press Enter to keep the default: ${config.dataDir})`);
+  const answer = (await promptLine("> ")).trim();
+  if (answer) {
+    const abs = resolvePath(answer);
+    saveUserConfig({ dataDir: abs });
+    console.log(`✓ logs will save to ${abs}`);
+  } else {
+    console.log(`✓ logs will save to ${config.dataDir}`);
+  }
+
+  console.log("\nAll set. Try: voicelogger record");
 }
