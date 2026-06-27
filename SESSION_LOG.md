@@ -114,6 +114,26 @@ registry** that drives both dispatch and help:
 Verified: build + 61 tests; exercised --help, `<cmd> --help`, `help <cmd>`, `-h`, unknown
 (exit 1), version, and a real run.
 
+### 8. De-emphasize ledger; make the tracker opt-in (user request, 2026-06-27) — DONE
+A first-time user (a friend) shouldn't see "ledger" everywhere ("wtf is ledger"). Made the
+project-tracker integration opt-in and hidden until connected:
+- `config.ts`: `ledgerBin` now resolves from `LEDGER_BIN` env → saved config → "" (was a
+  hardcoded `"ledger"` default that always tried PATH). Added `ledgerEnabled`.
+- `userConfig.ts`: `ledgerBin?` saved field. `config ledger <path|off>` connects/disconnects
+  (bare names kept for PATH, paths resolved); `config show` shows tracker status.
+- `link`: notifies a tracker only when `ledgerEnabled` — otherwise just the local project tag.
+  Help summary is now "attach a session to a project" (no ledger); tracker flags are framed
+  as optional with a pointer to `config ledger`.
+- `doctor`: added a "logs saved to: <dataDir>" line (answers "where do notes go?"), and the
+  tracker check now appears **only when one is connected**.
+- README + CLI examples de-ledgered (diagram, doctor summary, example app name rrg not ledger).
+Tests: tracker off by default, saved path enables it, ledgerBin round-trips (64 total).
+
+Also answered the user's "out of the box" question: logs route to `~/Projects/voice_logs/`
+(raw/ + cleaned/ + sessions/); config at `~/.voicelogger/`. Noted the default dir is a bit
+dev-flavored (`~/Projects/...`) — could switch to `~/voice_logs` or `~/Documents/...` if
+they want a friendlier default (deferred — would move existing users' expected location).
+
 ## Status / what's committed
 6 autonomous commits this session: `doctor`, `list --json`, `app` (+ the 3 prior feature
 commits). All local on `main`, ahead of `origin/main`. typecheck + build + 49 tests + the

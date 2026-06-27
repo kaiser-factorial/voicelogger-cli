@@ -35,3 +35,12 @@ test("applyStoredEnv does not override an existing env key", () => {
   applyStoredEnv();
   assert.equal(process.env.ANTHROPIC_API_KEY, "sk-ant-fromenv");
 });
+
+test("ledgerBin round-trips and can be cleared with undefined", () => {
+  saveUserConfig({ ledgerBin: "/opt/ledger" });
+  assert.equal(loadUserConfig().ledgerBin, "/opt/ledger");
+  // the API key set earlier must survive the merge
+  assert.equal(loadUserConfig().anthropicApiKey, "sk-ant-test123");
+  saveUserConfig({ ledgerBin: undefined });
+  assert.equal(loadUserConfig().ledgerBin, undefined);
+});

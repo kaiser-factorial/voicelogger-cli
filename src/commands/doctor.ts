@@ -50,6 +50,14 @@ export async function doctorCommand(): Promise<void> {
     detail: `v${process.versions.node}`,
   });
 
+  // Where recordings are saved (informational).
+  checks.push({
+    name: "logs saved to",
+    ok: true,
+    required: false,
+    detail: `${config.dataDir}  (raw/ + cleaned/ + sessions/)`,
+  });
+
   const ff = await runBinary(config.ffmpegBin, ["-version"]);
   checks.push({
     name: "ffmpeg (mic capture)",
@@ -97,13 +105,16 @@ export async function doctorCommand(): Promise<void> {
     detail: hasAnthropicAuth() ? "set" : "not set — run: voicelogger config",
   });
 
-  const ld = await runBinary(config.ledgerBin, ["--help"]);
-  checks.push({
-    name: "ledger CLI (link)",
-    ok: ld.ran,
-    required: false,
-    detail: ld.ran ? config.ledgerBin : `not found: ${config.ledgerBin} — set LEDGER_BIN (optional)`,
-  });
+  // Only shown once a project tracker is connected (config ledger / LEDGER_BIN).
+  if (config.ledgerEnabled) {
+    const ld = await runBinary(config.ledgerBin, ["--help"]);
+    checks.push({
+      name: "project tracker (link)",
+      ok: ld.ran,
+      required: false,
+      detail: ld.ran ? config.ledgerBin : `not found: ${config.ledgerBin} — check the path`,
+    });
+  }
 
   console.log("voicelogger doctor\n");
   for (const c of checks) {

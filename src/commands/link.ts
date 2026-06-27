@@ -1,11 +1,12 @@
+import { config } from "../config.js";
 import { exitLabel, ledgerNote, ledgerTouch } from "../ledger.js";
 import { resolveSession, writeSession } from "../store.js";
 import { optValue, positionals } from "./util.js";
 
 /**
- * Attach a session to a project. Always records the link locally; unless
- * --no-ledger, also drops a `ledger note` (and a `touch` with --touch) via the
- * ledger-cli — the CLI-to-CLI bridge from the plan.
+ * Attach a session to a project. Always records the link locally. If a project
+ * tracker is connected (`voicelogger config ledger <path>`, or LEDGER_BIN), it also
+ * notifies the tracker — a note, and a touch with --touch — unless --no-ledger.
  *
  *   voicelogger link <session|latest> <projectId> [--touch] [--reason <r>] [--note <n>] [--no-ledger]
  */
@@ -29,7 +30,8 @@ export async function linkCommand(args: string[]): Promise<void> {
   await writeSession(session);
   console.log(`✓ linked session ${session.id} → project ${projectId}`);
 
-  if (args.includes("--no-ledger")) return;
+  // Tracker notification is opt-in: no connected tracker → local link only.
+  if (!config.ledgerEnabled || args.includes("--no-ledger")) return;
 
   const noteText =
     optValue(args, "--note") ??

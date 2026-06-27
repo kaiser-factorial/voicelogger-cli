@@ -69,13 +69,15 @@ const COMMANDS: Command[] = [
   {
     name: "link",
     group: "Integrate",
-    summary: "attach a session to a project (drops a ledger note)",
+    summary: "attach a session to a project",
     usage:
       "voicelogger link <session|latest> <projectId> [--touch] [--reason <r>] [--note <n>] [--no-ledger]",
-    options: `  --touch          also record a 'ledger touch' on the project
-  --reason <r>     reason for the touch
-  --note <n>       note text (default: the session summary)
-  --no-ledger      save the local link only; skip the ledger CLI`,
+    options: `  --no-ledger      don't notify a connected tracker (save the local link only)
+  --touch          tracker: also record a 'touch' on the project
+  --reason <r>     tracker: reason for the touch
+  --note <n>       tracker: note text (default: the session summary)
+
+  A project tracker is optional — connect one with: voicelogger config ledger <path>`,
     run: linkCommand,
   },
   {
@@ -93,15 +95,16 @@ const COMMANDS: Command[] = [
     name: "config",
     group: "Setup",
     summary: "set the Anthropic API key (wizard) / show config",
-    usage: "voicelogger config [show]",
+    usage: "voicelogger config [show | ledger <path|off>]",
     options: `  (no arg)         run the wizard to set your API key (input hidden)
-  show             print the resolved config (key masked)`,
+  show             print the resolved config (key masked)
+  ledger <path>    connect a project tracker CLI (or 'off' to disconnect)`,
     run: configCommand,
   },
   {
     name: "doctor",
     group: "Setup",
-    summary: "check ffmpeg / whisper / model / key / ledger",
+    summary: "check ffmpeg / whisper / model / API key",
     usage: "voicelogger doctor",
     run: () => doctorCommand(),
   },

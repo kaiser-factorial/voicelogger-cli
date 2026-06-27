@@ -9,9 +9,9 @@ calls the Anthropic API). Transcripts are written as plain Markdown so agents/to
 read them directly.
 
 ```
-mic ──▶ energy VAD ──▶ whisper.cpp ──▶ raw/<id>.md  ──(clean)──▶ cleaned/<id>.md
+mic ──▶ energy VAD ──▶ whisper.cpp ──▶ raw/<id>.md  ──(clean)──▶ cleaned/<friendly-name>.md
                                        sessions/<id>.json (index)   │
-                                                                    └─(link)─▶ ledger note/touch
+                                                                    └─(link)─▶ project (+ optional tracker)
 ```
 
 ## Install
@@ -55,15 +55,15 @@ voicelogger record                       # record, then auto-clean + show the ed
 voicelogger record --project rrg         # tag the session with a project id
 voicelogger record --no-clean            # keep raw only; skip the cleanup pass
 voicelogger record --clean prompt        # ask before cleaning this recording
-voicelogger doctor                       # check ffmpeg / whisper / model / key / ledger
+voicelogger doctor                       # check ffmpeg / whisper / model / API key
 voicelogger list                         # all sessions, newest first
 voicelogger list --json                  # machine-readable session list
 voicelogger show latest                  # print the latest transcript (cleaned if present)
 voicelogger show latest --raw            # force the raw transcript
 voicelogger clean latest                 # LLM-clean the latest raw transcript
-voicelogger link latest rrg              # attach to project "rrg" (+ ledger note)
-voicelogger app add ledger ~/path/to/app # register an app + create its voicelogs/ dir
-voicelogger app push latest ledger       # copy the session's logs into that app
+voicelogger link latest rrg              # tag the latest recording with project "rrg"
+voicelogger app add rrg ~/Projects/rrg   # register an app + create its voicelogs/ dir
+voicelogger app push latest rrg          # copy the session's logs into that app
 voicelogger download-model               # fetch the Whisper model
 voicelogger version
 ```
@@ -110,22 +110,25 @@ Per-recording overrides: `record --no-clean`, `record --clean`, `record --clean 
 `voicelogger show <id>` renders the cleaned version styled (raw is shown verbatim); add
 `--plain` for unstyled markdown.
 
-## Use with The Ledger (or any project tracker)
+## Link a session to a project
 
-`voicelogger link <session> <projectId>` records the link locally and — unless
-`--no-ledger` — shells out to the `ledger` CLI to drop a `ledger note` (and a `touch`
-with `--touch`), tying debug narration to project status.
+`voicelogger link <session> <projectId>` tags a recording with a project (stored in the
+session index). That's all it does by default.
 
-By default it calls `ledger` on your `PATH`. If the binary lives elsewhere, point
-`LEDGER_BIN` at it:
+### Optional: connect a project tracker
+
+If you use a project-tracker CLI (e.g. [The Ledger](https://github.com/kaiser-factorial)),
+connect it once and `link` will also notify it — a note, and a `touch` with `--touch`:
 
 ```bash
-export LEDGER_BIN="$HOME/Projects/ledger_root/ledger-cli/ledger"
+voicelogger config ledger /path/to/ledger      # connect (saved per-machine)
 voicelogger link latest rrg --touch --reason "voice debug session"
+voicelogger config ledger off                  # disconnect
 ```
 
-If the binary is missing or auth fails, the **local link is still saved** and a warning
-is printed — `voicelogger` never loses your data over a bridge failure.
+You can also set `LEDGER_BIN` in the environment instead of saving it. Until a tracker is
+connected, `link` stays purely local and never mentions one. If the tracker call fails, the
+**local link is still saved** — `voicelogger` never loses your data over a bridge failure.
 
 ## Push logs into other apps
 
@@ -181,7 +184,7 @@ const session = await rec.stop();
 | `CLAUDE_MODEL` | `claude-opus-4-8` | Anthropic model for `clean` (e.g. `claude-haiku-4-5` for speed/cost) |
 | `CLEAN_MAX_TOKENS` | `16000` | max output tokens for `clean` |
 | `GLOSSARY_PATH` / `TEMPLATE_PATH` | bundled `cleaning/*` | cleaning glossary + template |
-| `LEDGER_BIN` | `ledger` | the `ledger` binary used by `link` |
+| `LEDGER_BIN` | — (off) | optional project-tracker CLI for `link` (or run `config ledger <path>`) |
 | `ANTHROPIC_API_KEY` | — | required by `clean` |
 
 ## Architecture
@@ -206,7 +209,7 @@ src/
   store.ts                 list/resolve/read sessions on disk
   userConfig.ts            per-machine config (~/.voicelogger/config.json, API key)
   apps.ts                  app registry (~/.voicelogger/apps.json) for `app push`
-  ledger.ts                bridge to the `ledger` CLI
+  ledger.ts                bridge to an optional project-tracker CLI (e.g. ledger)
   commands/                record · clean · list · show · link · config · app · doctor · download-model
 ```
 

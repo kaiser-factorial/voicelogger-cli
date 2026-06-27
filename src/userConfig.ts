@@ -10,6 +10,8 @@ import path from "node:path";
  */
 export interface UserConfig {
   anthropicApiKey?: string;
+  /** Path to a project-tracker CLI (e.g. The Ledger) that `link` notifies. Optional. */
+  ledgerBin?: string;
 }
 
 function userHome(): string {

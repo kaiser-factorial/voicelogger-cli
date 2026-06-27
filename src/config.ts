@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { parseCleanMode } from "./cleanMode.js";
 import { micDefaults } from "./platform.js";
 import type { CleanMode } from "./types.js";
-import { applyStoredEnv } from "./userConfig.js";
+import { applyStoredEnv, loadUserConfig } from "./userConfig.js";
 
 // Load a key saved via `voicelogger config` into the environment (if none is set)
 // before anything reads Anthropic credentials.
@@ -78,13 +78,19 @@ export interface Config {
   /** How `record` handles cleaning on finish (VOICELOGGER_AUTOCLEAN). Default "auto". */
   autoCleanMode: CleanMode;
 
-  // --- ledger-cli bridge (the CLI-to-CLI link) ---
-  /** The `ledger` binary used by `link`. Defaults to `ledger` on PATH; set LEDGER_BIN to point at a build. */
+  // --- project-tracker integration (optional; e.g. The Ledger) ---
+  /** Tracker CLI used by `link`. Empty unless connected via LEDGER_BIN or `config ledger`. */
   ledgerBin: string;
+  /** Whether a tracker CLI is connected (link will notify it). */
+  ledgerEnabled: boolean;
 }
 
 // Platform-derived ffmpeg mic input (overridable via MIC_FORMAT / MIC_DEVICE).
 const mic = micDefaults(process.platform);
+
+// Project-tracker integration is opt-in: off unless LEDGER_BIN is set or a path was
+// saved via `voicelogger config ledger <path>`.
+const ledgerBin = process.env.LEDGER_BIN ?? loadUserConfig().ledgerBin ?? "";
 
 export const config: Config = {
   dataDir,
@@ -108,7 +114,6 @@ export const config: Config = {
   templatePath: process.env.TEMPLATE_PATH ?? path.join(packageRoot, "cleaning", "template.md"),
   autoCleanMode: parseCleanMode(process.env.VOICELOGGER_AUTOCLEAN) ?? "auto",
 
-  // Defaults to `ledger` on PATH so the bridge is portable. Point LEDGER_BIN at a
-  // local build (e.g. ../ledger-cli/ledger) when the binary isn't installed globally.
-  ledgerBin: process.env.LEDGER_BIN ?? "ledger",
+  ledgerBin,
+  ledgerEnabled: ledgerBin !== "",
 };
