@@ -37,5 +37,37 @@ ffmpeg/whisper/model ✓, key/ledger shown as optional `—`, exit 0.
 scripting and the eventual ledger/`--app` integration. Human format unchanged. Verified
 live against a temp data dir. (`listCommand` now takes `args`; `cli.ts` passes `rest`.)
 
-### 3. `--app` multi-app routing (roadmap item)
-_next — see "Decisions needed" below; building a first cut with safe defaults._
+### 3. `--app` multi-app routing (roadmap item) — FIRST CUT DONE
+`voicelogger app add|list|push|rm`: registry at `~/.voicelogger/apps.json` (`src/apps.ts`),
+`app add <name> <path>` registers + creates `<path>/voicelogs/`, `app push <session> <name>`
+copies the session's logs into it. Registry unit-tested; add→push→rm verified live.
+
+**⚠ DIVERGENCES / decisions (BRAINSTORM left these open — chose defaults):**
+- Built a dedicated `app <subcommand>` group **instead of the literal global
+  `voicelogger --app ledger` flag**. Cleaner first cut, composable, and avoids a global
+  flag whose meaning depends on the command. The `--app` selector at record time is a
+  follow-up that can sit on top of this registry.
+- `push` copies **raw + cleaned + index** (not cleaned-only) — most useful; the app gets
+  the full record.
+- **Copy, not symlink** — the app owns its data even if `~/Projects/voice_logs` moves.
+- Rewrote the pushed index's `rawPath`/`cleanedPath` to the **app-local** copies so each
+  app's `voicelogs/` is self-contained.
+- `AppEntry.bin` (per-app companion CLI, e.g. ledger) is a **PLACEHOLDER** — recorded but
+  not used yet.
+
+**Deferred (need a quick decision or are bigger):**
+- Auto-push on `record` (a `record --app <name>` that pushes after cleanup).
+- Routing `link` notes through the per-app `bin`.
+- Per-app glossary/template overrides.
+
+## Status / what's committed
+6 autonomous commits this session: `doctor`, `list --json`, `app` (+ the 3 prior feature
+commits). All local on `main`, ahead of `origin/main`. typecheck + build + 49 tests + the
+whisper smoke all green.
+
+## Needs the user
+- **Push the branch** (`git push`) when ready — CI then runs on GitHub.
+- **Live testing** with a real mic + API key + terminal (see the testing checklist I gave
+  in chat): `record` end-to-end, the hidden `config` prompt, the no-key nudge.
+- **Decisions** to unblock the deferred `--app` items: should `record --app <name>`
+  auto-push after cleanup? push cleaned-only or all three? These are quick calls.

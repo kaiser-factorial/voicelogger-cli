@@ -14,6 +14,7 @@
  * `npm run voicelogger -- <command> …` (or the per-command scripts).
  */
 import { readFileSync } from "node:fs";
+import { appCommand } from "./commands/app.js";
 import { cleanCommand } from "./commands/clean.js";
 import { configCommand } from "./commands/config.js";
 import { doctorCommand } from "./commands/doctor.js";
@@ -33,6 +34,7 @@ commands:
   link   <session|latest> <projectId>      attach to a project (drops a ledger note)
            [--touch] [--reason <r>] [--note <n>] [--no-ledger]
   config [show]                            set the Anthropic API key (wizard) / show config
+  app    add|list|push|rm                  push session logs into a registered app dir
   doctor                                   check ffmpeg / whisper / model / key / ledger
   download-model [--force]                 download the Whisper model
   version                                  print the installed version
@@ -66,6 +68,8 @@ async function main(): Promise<void> {
       return linkCommand(rest);
     case "config":
       return configCommand(rest);
+    case "app":
+      return appCommand(rest);
     case "doctor":
       return doctorCommand();
     case "download-model":

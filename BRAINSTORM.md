@@ -5,6 +5,14 @@ parking lot.
 
 ## Multi-app targets — `voicelogger --app <name>`
 
+> **Status (2026-06-27): first cut shipped.** `voicelogger app add|list|push|rm` is
+> implemented (registry at `~/.voicelogger/apps.json`, push copies raw+cleaned+index
+> into `<app>/voicelogs/`). Decisions made in the first cut: a dedicated `app`
+> subcommand instead of a global `--app` flag; push copies all three artifacts (not
+> cleaned-only); copy not symlink; index paths rewritten to app-local. Still open:
+> auto-push on `record`, the `--app <name>` selector at record time, per-app glossary,
+> and using the per-app `bin` to route `link` notes. See SESSION_LOG.md.
+
 The reason `voicelogger` is its own tool is that it should serve **more than one**
 project (The Ledger today, RRG and others later). Generalize today's single `link`
 bridge into named app targets.

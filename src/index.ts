@@ -30,6 +30,15 @@ export {
   type UserConfig,
 } from "./userConfig.js";
 export { setupApiKey } from "./setupKey.js";
+export {
+  loadApps,
+  getApp,
+  upsertApp,
+  removeApp,
+  appsFilePath,
+  type AppEntry,
+  type AppRegistry,
+} from "./apps.js";
 export { resolveAutoCleanMode, parseCleanMode } from "./cleanMode.js";
 export { renderMarkdown, type RenderOptions } from "./markdown.js";
 

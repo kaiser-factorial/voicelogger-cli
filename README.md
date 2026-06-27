@@ -60,6 +60,8 @@ voicelogger show latest                  # print the latest transcript (cleaned 
 voicelogger show latest --raw            # force the raw transcript
 voicelogger clean latest                 # LLM-clean the latest raw transcript
 voicelogger link latest rrg              # attach to project "rrg" (+ ledger note)
+voicelogger app add ledger ~/path/to/app # register an app + create its voicelogs/ dir
+voicelogger app push latest ledger       # copy the session's logs into that app
 voicelogger download-model               # fetch the Whisper model
 voicelogger version
 ```
@@ -118,6 +120,23 @@ voicelogger link latest rrg --touch --reason "voice debug session"
 If the binary is missing or auth fails, the **local link is still saved** and a warning
 is printed — `voicelogger` never loses your data over a bridge failure.
 
+## Push logs into other apps
+
+Register a project directory as an "app", then copy a session's logs into it — so each
+app owns a self-contained `voicelogs/` of the recordings relevant to it:
+
+```bash
+voicelogger app add rrg ~/Projects/rrg   # registers rrg + creates ~/Projects/rrg/voicelogs/
+voicelogger app list
+voicelogger app push latest rrg          # copies raw + cleaned + index into rrg/voicelogs/
+voicelogger app rm rrg
+```
+
+`push` copies (doesn't symlink) the raw transcript, the cleaned markdown, and the session
+index, rewriting the index paths to the app-local copies. The registry lives at
+`~/.voicelogger/apps.json`. See [BRAINSTORM.md](BRAINSTORM.md) for where this is headed
+(auto-push on record, a per-app `voicelogger --app <name>` selector).
+
 ## Use as a library in another project
 
 The package also ships a typed library entry, so you can embed the pipeline instead of
@@ -175,8 +194,9 @@ src/
   markdown.ts              styled-terminal markdown renderer
   store.ts                 list/resolve/read sessions on disk
   userConfig.ts            per-machine config (~/.voicelogger/config.json, API key)
+  apps.ts                  app registry (~/.voicelogger/apps.json) for `app push`
   ledger.ts                bridge to the `ledger` CLI
-  commands/                record · clean · list · show · link · config · doctor · download-model
+  commands/                record · clean · list · show · link · config · app · doctor · download-model
 ```
 
 Everything downstream of `VoiceSource` is source-agnostic, so a network/device source
