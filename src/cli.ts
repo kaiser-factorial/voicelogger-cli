@@ -22,6 +22,9 @@ const GROUPS: Group[] = ["Record", "Browse", "Integrate", "Setup"];
 interface Command {
   name: string;
   group: Group;
+  /** Short, action-first caption for the top-level menu (~5–6 words). */
+  short: string;
+  /** Longer one-line shown at the top of `<cmd> --help`. */
   summary: string;
   usage: string;
   options?: string;
@@ -32,6 +35,7 @@ const COMMANDS: Command[] = [
   {
     name: "record",
     group: "Record",
+    short: "capture a new voice log",
     summary: "record the mic until Enter/Ctrl-C, then auto-clean",
     usage: "voicelogger record [--project <id>] [--app <name>] [--no-clean | --clean <mode>]",
     options: `  --project <id>   tag the session with a project id
@@ -43,6 +47,7 @@ const COMMANDS: Command[] = [
   {
     name: "clean",
     group: "Record",
+    short: "LLM-clean a raw transcript",
     summary: "LLM-clean a raw transcript → cleaned/<name>.md",
     usage: "voicelogger clean <session|latest> [--plain]",
     options: "  --plain          print the cleaned markdown unstyled",
@@ -51,6 +56,7 @@ const COMMANDS: Command[] = [
   {
     name: "list",
     group: "Browse",
+    short: "see all your logs",
     summary: "list sessions, newest first",
     usage: "voicelogger list [--json]",
     options: "  --json           output the raw session list as JSON",
@@ -59,6 +65,7 @@ const COMMANDS: Command[] = [
   {
     name: "show",
     group: "Browse",
+    short: "read a log",
     summary: "print a transcript (cleaned by default)",
     usage: "voicelogger show <session|latest> [--raw | --cleaned] [--plain]",
     options: `  --raw            show the untouched raw transcript
@@ -69,6 +76,7 @@ const COMMANDS: Command[] = [
   {
     name: "link",
     group: "Integrate",
+    short: "tag a log with a project",
     summary: "attach a session to a project",
     usage:
       "voicelogger link <session|latest> <projectId> [--touch] [--reason <r>] [--note <n>] [--no-ledger]",
@@ -83,6 +91,7 @@ const COMMANDS: Command[] = [
   {
     name: "app",
     group: "Integrate",
+    short: "send logs to another project",
     summary: "push session logs into a registered app dir",
     usage: "voicelogger app <add|list|push|rm> …",
     options: `  add <name> <path>              register an app + create <path>/voicelogs/
@@ -94,6 +103,7 @@ const COMMANDS: Command[] = [
   {
     name: "config",
     group: "Setup",
+    short: "set your API key + preferences",
     summary: "set the Anthropic API key (wizard) / show config",
     usage: "voicelogger config [show | ledger <path|off>]",
     options: `  (no arg)         run the wizard to set your API key (input hidden)
@@ -104,6 +114,7 @@ const COMMANDS: Command[] = [
   {
     name: "doctor",
     group: "Setup",
+    short: "check your setup",
     summary: "check ffmpeg / whisper / model / API key",
     usage: "voicelogger doctor",
     run: () => doctorCommand(),
@@ -111,6 +122,7 @@ const COMMANDS: Command[] = [
   {
     name: "download-model",
     group: "Setup",
+    short: "fetch the Whisper model (~141 MB)",
     summary: "download the Whisper model (~141 MB)",
     usage: "voicelogger download-model [--force]",
     options: "  --force          re-download even if the model is already present",
@@ -129,23 +141,28 @@ function version(): string {
   }
 }
 
+/** Light ANSI bold/dim, but only when stdout is a real TTY (clean text on pipes/CI). */
+const isTTY = Boolean(process.stdout.isTTY) && !process.env.NO_COLOR;
+const bold = (s: string): string => (isTTY ? `\x1b[1m${s}\x1b[22m` : s);
+const dim = (s: string): string => (isTTY ? `\x1b[2m${s}\x1b[22m` : s);
+
 function topLevelHelp(): string {
   const pad = Math.max(...COMMANDS.map((c) => c.name.length));
   const lines = [
-    "voicelogger — local Whisper voice-logger",
+    bold("voicelogger") + dim(" — record your voice, get a clean note back."),
     "",
-    "usage: voicelogger <command> [options]",
+    "What do you want to do?",
   ];
   for (const group of GROUPS) {
-    lines.push("", group);
+    lines.push("", dim(group));
     for (const c of COMMANDS.filter((x) => x.group === group)) {
-      lines.push(`  ${c.name.padEnd(pad)}   ${c.summary}`);
+      lines.push(`  • ${bold(c.name.padEnd(pad))}   ${c.short}`);
     }
   }
   lines.push(
     "",
-    "Run 'voicelogger <command> --help' for options  ·  'voicelogger version' for the version.",
-    'A <session> is a full id, a unique id prefix, or "latest".',
+    dim("New here? Run ") + "voicelogger doctor" + dim(" to check your setup."),
+    dim("More on a command: ") + "voicelogger <command> --help",
   );
   return lines.join("\n");
 }

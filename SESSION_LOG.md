@@ -134,6 +134,17 @@ Also answered the user's "out of the box" question: logs route to `~/Projects/vo
 dev-flavored (`~/Projects/...`) — could switch to `~/voice_logs` or `~/Documents/...` if
 they want a friendlier default (deferred — would move existing users' expected location).
 
+### 9. Friendlier top-level menu (user request, 2026-06-27) — DONE
+Bare `voicelogger` now shows a friendly bulleted menu with action-first captions, not the
+old reference table. Per-command help (`voicelogger <cmd> --help`) keeps the longer wording.
+- Added a `short` field per command (e.g. record → "capture a new voice log", clean →
+  "LLM-clean a raw transcript"). Kept `summary` for the per-command header.
+- `topLevelHelp` rewrote: tagline ("record your voice, get a clean note back."), "What do
+  you want to do?" prompt, grouped bullets, a "New here? Run voicelogger doctor" hint.
+- Light ANSI: bold command names + dim group headers, but only on real TTYs (clean text on
+  pipes / `NO_COLOR`).
+Verified: 64 tests, plain-text + TTY-color output, per-command --help unchanged.
+
 ## Status / what's committed
 6 autonomous commits this session: `doctor`, `list --json`, `app` (+ the 3 prior feature
 commits). All local on `main`, ahead of `origin/main`. typecheck + build + 49 tests + the
