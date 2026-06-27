@@ -12,6 +12,12 @@ import { config } from "./config.js";
  * cheaper/faster pass.
  */
 const CleanResult = z.object({
+  title: z
+    .string()
+    .describe(
+      "A short, file-name-friendly title for this voice log: 3–6 words capturing the topic " +
+        "(e.g. 'Test with music', 'RRG eval brief'). Plain words only — no date, quotes, or punctuation.",
+    ),
   summary: z
     .string()
     .describe("One sentence (≤ 20 words) capturing what this voice log is about."),
@@ -71,7 +77,8 @@ function buildSystemPrompt({ glossary, template }: CleanInputs): string {
     "4. Omit any template section that has no content rather than padding it.",
     "5. Write clear, concise prose in the speaker's first-person voice.",
     "",
-    "Return `summary` (one sentence) and `cleaned` (the Markdown body, with no title heading).",
+    "Return `title` (3–6 plain words for the filename), `summary` (one sentence), and `cleaned`",
+    "(the Markdown body, with no title heading).",
     "",
     "=== GLOSSARY (mis-hearing → correct term) ===",
     glossary.trim() || "(none provided)",

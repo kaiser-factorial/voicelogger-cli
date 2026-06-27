@@ -21,15 +21,17 @@ export async function pushSessionToApp(
     mkdir(path.join(base, "sessions"), { recursive: true }),
   ]);
 
+  // Preserve each file's own name — so the cleaned copy keeps its friendly
+  // title (e.g. test_with_music_27June2026.md), not the timestamp id.
   const copied: string[] = [];
-  const destRaw = path.join(base, "raw", `${session.id}.md`);
+  const destRaw = path.join(base, "raw", path.basename(session.rawPath));
   if (existsSync(session.rawPath)) {
     await copyFile(session.rawPath, destRaw);
     copied.push("raw");
   }
   let destCleaned: string | undefined;
   if (session.cleanedPath && existsSync(session.cleanedPath)) {
-    destCleaned = path.join(base, "cleaned", `${session.id}.md`);
+    destCleaned = path.join(base, "cleaned", path.basename(session.cleanedPath));
     await copyFile(session.cleanedPath, destCleaned);
     copied.push("cleaned");
   }

@@ -75,9 +75,14 @@ live transcript prints as each utterance is recognized; files land under `VOICEL
 ## Cleanup — the edited markdown
 
 Every session keeps two files: `raw/<id>.md` (the untouched transcript, never overwritten)
-and `cleaned/<id>.md` (an LLM-edited pass that removes disfluencies, fixes domain terms via
-the shared glossary, and organizes the content into the template). When a recording finishes,
+and a cleaned, LLM-edited pass that removes disfluencies, fixes domain terms via the shared
+glossary, and organizes the content into the template. When a recording finishes,
 `voicelogger` runs the cleanup and prints the edited markdown **styled inline** in the terminal.
+
+The cleaned file gets a **human-friendly name** the model picks from the content, plus the
+date — e.g. `cleaned/test_with_music_27June2026.md` (the raw transcript and the session id
+keep the sortable timestamp). Re-cleaning a session keeps its name; same-day collisions get
+a `-2`, `-3` suffix.
 
 The cleanup pass needs an Anthropic API key. Save it once with the wizard (it's entered
 hidden and stored at `~/.voicelogger/config.json` with `600` perms):

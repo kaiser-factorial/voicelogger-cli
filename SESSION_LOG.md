@@ -69,6 +69,22 @@ decision as `app push`).
 - Streaming partials, network/device `VoiceSource`, cross-platform mic — these need
   infra/devices/other OSes I can't build+test here, so left for when that context exists.
 
+### 5. Friendly names for cleaned files (user request, 2026-06-27) — DONE
+User asked: name the cleaned recording like `test_with_music_27June2026` instead of the
+timestamp id. Implemented:
+- `cleaner.ts`: added a `title` field to the structured output (3–6 plain words). SDK call
+  shape unchanged (still `messages.parse` + `output_config.format` + `parsed_output`).
+- `slug.ts` (new, unit-tested): `slugify` (ASCII, underscores, diacritics folded) +
+  `dateStamp` (`27June2026`, local date) + `cleanedBaseName`.
+- `cleanSession.ts`: cleaned file is now `cleaned/<title>_<date>.md`; the H1 is the title and
+  the session id moved into metadata. First clean assigns the name (collisions bump `-2`…);
+  re-clean keeps the existing file. Raw + session id keep the sortable timestamp.
+- `appPush.ts`: copies preserve each file's own name, so the friendly cleaned name carries
+  into an app's `voicelogs/`. (Tests updated.)
+Verified: slug/dateStamp unit tests, the new cleaned-header renders correctly via `show`,
+full build + 56 tests + smoke green. (Live LLM title needs a key — verified the naming
+mechanics deterministically; the title itself is produced at clean time on the user's machine.)
+
 ## Status / what's committed
 6 autonomous commits this session: `doctor`, `list --json`, `app` (+ the 3 prior feature
 commits). All local on `main`, ahead of `origin/main`. typecheck + build + 49 tests + the

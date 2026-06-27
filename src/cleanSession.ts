@@ -1,7 +1,9 @@
+import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { config } from "./config.js";
 import { cleanTranscript } from "./cleaner.js";
+import { cleanedBaseName } from "./slug.js";
 import { readRawBody, writeSession } from "./store.js";
 import type { VoiceLogSession } from "./types.js";
 
@@ -15,6 +17,15 @@ export interface CleanOutcome {
 /** Whether Anthropic credentials are available for the cleaning pass. */
 export function hasAnthropicAuth(): boolean {
   return Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+}
+
+/** `cleaned/<base>.md`, bumping with -2, -3, … if a different file already has that name. */
+function uniqueCleanedPath(base: string): string {
+  let candidate = path.join(config.cleanedDir, `${base}.md`);
+  for (let n = 2; existsSync(candidate); n++) {
+    candidate = path.join(config.cleanedDir, `${base}-${n}.md`);
+  }
+  return candidate;
 }
 
 /**
@@ -34,15 +45,19 @@ export async function runClean(session: VoiceLogSession): Promise<CleanOutcome> 
     readFile(config.templatePath, "utf8").catch(() => ""),
   ]);
 
-  const { summary, cleaned } = await cleanTranscript(body, { glossary, template });
+  const { title, summary, cleaned } = await cleanTranscript(body, { glossary, template });
 
   await mkdir(config.cleanedDir, { recursive: true });
-  const cleanedPath = path.join(config.cleanedDir, `${session.id}.md`);
+  // First clean → a friendly name from the LLM title + date (e.g.
+  // test_with_music_27June2026.md); re-clean → keep the existing file/name.
+  const cleanedPath =
+    session.cleanedPath ?? uniqueCleanedPath(cleanedBaseName(title, session.startedAt));
   const header = [
-    `# Cleaned voice log — ${session.id}`,
+    `# ${title}`,
     "",
     `> ${summary}`,
     "",
+    `- session: ${session.id}`,
     `- source: ${session.source}`,
     `- project: ${session.projectId ?? "(unlinked)"}`,
     `- cleaned from: ${session.rawPath}`,

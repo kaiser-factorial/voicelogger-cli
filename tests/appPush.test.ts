@@ -6,11 +6,11 @@ import path from "node:path";
 import { pushSessionToApp } from "../src/appPush.js";
 import type { VoiceLogSession } from "../src/types.js";
 
-test("pushSessionToApp copies raw + cleaned + index with app-local paths", async () => {
+test("pushSessionToApp copies raw + cleaned (keeping its friendly name) + index", async () => {
   const src = mkdtempSync(path.join(os.tmpdir(), "vl-src-"));
   const app = mkdtempSync(path.join(os.tmpdir(), "vl-app-"));
-  const rawPath = path.join(src, "raw.md");
-  const cleanedPath = path.join(src, "cleaned.md");
+  const rawPath = path.join(src, "sid.md"); // raw is named by id
+  const cleanedPath = path.join(src, "test_with_music_27June2026.md"); // friendly name
   writeFileSync(rawPath, "raw body");
   writeFileSync(cleanedPath, "cleaned body");
   const session: VoiceLogSession = {
@@ -26,16 +26,16 @@ test("pushSessionToApp copies raw + cleaned + index with app-local paths", async
 
   assert.deepEqual([...copied].sort(), ["cleaned", "raw"]);
   assert.ok(existsSync(path.join(base, "raw", "sid.md")));
-  assert.ok(existsSync(path.join(base, "cleaned", "sid.md")));
+  assert.ok(existsSync(path.join(base, "cleaned", "test_with_music_27June2026.md")));
   const idx = JSON.parse(readFileSync(path.join(base, "sessions", "sid.json"), "utf8"));
   assert.equal(idx.rawPath, path.join(base, "raw", "sid.md")); // rewritten to app-local
-  assert.equal(idx.cleanedPath, path.join(base, "cleaned", "sid.md"));
+  assert.equal(idx.cleanedPath, path.join(base, "cleaned", "test_with_music_27June2026.md"));
 });
 
 test("pushSessionToApp handles a raw-only (uncleaned) session", async () => {
   const src = mkdtempSync(path.join(os.tmpdir(), "vl-src2-"));
   const app = mkdtempSync(path.join(os.tmpdir(), "vl-app2-"));
-  const rawPath = path.join(src, "raw.md");
+  const rawPath = path.join(src, "s2.md");
   writeFileSync(rawPath, "raw body");
   const session: VoiceLogSession = {
     id: "s2",
