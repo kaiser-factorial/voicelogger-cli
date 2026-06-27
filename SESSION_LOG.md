@@ -85,6 +85,22 @@ Verified: slug/dateStamp unit tests, the new cleaned-header renders correctly vi
 full build + 56 tests + smoke green. (Live LLM title needs a key — verified the naming
 mechanics deterministically; the title itself is produced at clean time on the user's machine.)
 
+### 6. Cross-platform mic scaffold (user request, 2026-06-27) — DONE
+User asked for *structure + notes* (not a full build-out) so a tech-savvy user on another OS
+can get going, and a future agent can finish it.
+- `src/platform.ts` (new, unit-tested): `micDefaults(platform)` → ffmpeg `-f`/`-i` defaults
+  per OS (macOS avfoundation/:0 verified; Linux alsa/default and Windows dshow experimental)
+  + a `supported` flag and a setup `note`. Has a `TODO(cross-platform)` pointing to the doc.
+- `config.ts`: `micFormat` (new) + `micDevice` are now platform-derived, overridable via
+  `MIC_FORMAT`/`MIC_DEVICE`. **macOS unchanged** (still avfoundation/:0 — verified no regression).
+- `LaptopMicSource`: uses `config.micFormat` instead of hardcoded avfoundation; comment generalized.
+- `doctor`: new info line shows the effective `-f <fmt> -i <dev>` and flags experimental platforms.
+- `docs/CROSS_PLATFORM.md` (new): Linux/Windows setup (device listing, env vars, examples) +
+  a build-out checklist (auto-detect device, `voicelogger devices`, verify on each OS, CI matrix).
+Verified: 61 tests (5 new platform tests), build, doctor mic line, env override + macOS default.
+Did NOT actually test Linux/Windows capture (no such machines here) — that's the documented
+next step; defaults there are best-guess standard ffmpeg inputs, clearly marked experimental.
+
 ## Status / what's committed
 6 autonomous commits this session: `doctor`, `list --json`, `app` (+ the 3 prior feature
 commits). All local on `main`, ahead of `origin/main`. typecheck + build + 49 tests + the

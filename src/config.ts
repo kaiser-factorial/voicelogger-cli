@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseCleanMode } from "./cleanMode.js";
+import { micDefaults } from "./platform.js";
 import type { CleanMode } from "./types.js";
 import { applyStoredEnv } from "./userConfig.js";
 
@@ -61,7 +62,9 @@ export interface Config {
   modelUrl: string;
   whisperBin: string;
   ffmpegBin: string;
-  /** avfoundation input spec for ffmpeg, e.g. ":0" = default audio device. */
+  /** ffmpeg input format for mic capture (`-f`), platform-derived; override with MIC_FORMAT. */
+  micFormat: string;
+  /** ffmpeg input device for mic capture (`-i`), platform-derived; override with MIC_DEVICE. */
   micDevice: string;
   whisperThreads: number;
   format: { sampleRate: number; channels: number };
@@ -80,6 +83,9 @@ export interface Config {
   ledgerBin: string;
 }
 
+// Platform-derived ffmpeg mic input (overridable via MIC_FORMAT / MIC_DEVICE).
+const mic = micDefaults(process.platform);
+
 export const config: Config = {
   dataDir,
   rawDir: path.join(dataDir, "raw"),
@@ -91,7 +97,8 @@ export const config: Config = {
     "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin",
   whisperBin: process.env.WHISPER_BIN ?? "whisper-cli",
   ffmpegBin: process.env.FFMPEG_BIN ?? "ffmpeg",
-  micDevice: process.env.MIC_DEVICE ?? ":0",
+  micFormat: process.env.MIC_FORMAT ?? mic.format,
+  micDevice: process.env.MIC_DEVICE ?? mic.device,
   whisperThreads: posInt(process.env.WHISPER_THREADS, 4),
   format: { sampleRate: 16000, channels: 1 },
 

@@ -60,4 +60,7 @@ bridge into named app targets.
 - **`voicelogger doctor`** — check ffmpeg / whisper-cli / model / `ledger` reachability
   in one shot (mirrors `ledger doctor`).
 - **Auto-clean on stop** — optionally run the `clean` pass immediately after `record`.
-- **Cross-platform mic capture** — a non-avfoundation source for Linux/Windows.
+- **Cross-platform mic capture** — _scaffolded (2026-06-27)._ Platform-derived
+  `MIC_FORMAT`/`MIC_DEVICE` (avfoundation/alsa/dshow) with env overrides; macOS verified,
+  Linux/Windows experimental. See [docs/CROSS_PLATFORM.md](docs/CROSS_PLATFORM.md) for the
+  setup notes + the build-out checklist (auto-detect device, `devices` command, CI on Linux).

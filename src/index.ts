@@ -41,6 +41,7 @@ export {
 } from "./apps.js";
 export { pushSessionToApp } from "./appPush.js";
 export { slugify, dateStamp, cleanedBaseName } from "./slug.js";
+export { micDefaults, type MicDefaults } from "./platform.js";
 export { resolveAutoCleanMode, parseCleanMode } from "./cleanMode.js";
 export { renderMarkdown, type RenderOptions } from "./markdown.js";
 

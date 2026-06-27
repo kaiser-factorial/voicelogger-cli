@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
 import { hasAnthropicAuth } from "../cleanSession.js";
 import { config } from "../config.js";
+import { micDefaults } from "../platform.js";
 
 /**
  * Check that the environment is ready: ffmpeg + whisper.cpp + a model for
@@ -55,6 +56,18 @@ export async function doctorCommand(): Promise<void> {
     ok: ff.ran,
     required: true,
     detail: ff.ran ? firstLine(ff.out) : `not found: ${config.ffmpegBin} — brew install ffmpeg`,
+  });
+
+  // Platform mic input — verified on macOS, experimental elsewhere (optional info).
+  const mic = micDefaults(process.platform);
+  const overridden = Boolean(process.env.MIC_FORMAT || process.env.MIC_DEVICE);
+  checks.push({
+    name: `mic input (${process.platform})`,
+    ok: mic.supported || overridden,
+    required: false,
+    detail:
+      `-f ${config.micFormat} -i ${config.micDevice || "(set MIC_DEVICE)"}` +
+      (mic.supported || overridden ? "" : " — experimental; see docs/CROSS_PLATFORM.md"),
   });
 
   const wh = await runBinary(config.whisperBin, ["--help"]);

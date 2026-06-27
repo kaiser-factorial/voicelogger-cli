@@ -43,8 +43,10 @@ npm run voicelogger -- --help     # run via tsx, or `npm run build` then `node d
 - **whisper.cpp** — `brew install whisper-cpp` (provides `whisper-cli`)
 - **A model** — `voicelogger download-model` (≈141 MB → `~/.voicelogger/models/ggml-base.en.bin`)
 
-> Mic capture currently targets macOS (`ffmpeg -f avfoundation`). The rest of the
-> pipeline is platform-agnostic.
+> Mic capture is **verified on macOS** (`ffmpeg -f avfoundation`). Linux (`alsa`/`pulse`)
+> and Windows (`dshow`) are **experimental** — the structure is in place and overridable via
+> `MIC_FORMAT` / `MIC_DEVICE`; see [docs/CROSS_PLATFORM.md](docs/CROSS_PLATFORM.md). The rest
+> of the pipeline is platform-agnostic.
 
 ## Usage
 
@@ -173,7 +175,8 @@ const session = await rec.stop();
 | `WHISPER_BIN` | `whisper-cli` | whisper.cpp binary |
 | `WHISPER_THREADS` | `4` | whisper threads |
 | `FFMPEG_BIN` | `ffmpeg` | ffmpeg binary |
-| `MIC_DEVICE` | `:0` | avfoundation input (`ffmpeg -f avfoundation -list_devices true -i ""` to list) |
+| `MIC_FORMAT` | per-OS (`avfoundation`/`alsa`/`dshow`) | ffmpeg input format (`-f`) — see [cross-platform notes](docs/CROSS_PLATFORM.md) |
+| `MIC_DEVICE` | per-OS (`:0` on macOS) | ffmpeg input device (`-i`); on Windows set `audio=<name>` |
 | `VOICELOGGER_AUTOCLEAN` | `auto` | cleanup on `record` finish: `auto` \| `prompt` \| `off` |
 | `CLAUDE_MODEL` | `claude-opus-4-8` | Anthropic model for `clean` (e.g. `claude-haiku-4-5` for speed/cost) |
 | `CLEAN_MAX_TOKENS` | `16000` | max output tokens for `clean` |
