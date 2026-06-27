@@ -132,10 +132,13 @@ voicelogger app push latest rrg          # copies raw + cleaned + index into rrg
 voicelogger app rm rrg
 ```
 
+Or push automatically as you record: `voicelogger record --app rrg` records, cleans, then
+copies the finished session into `rrg/voicelogs/`.
+
 `push` copies (doesn't symlink) the raw transcript, the cleaned markdown, and the session
 index, rewriting the index paths to the app-local copies. The registry lives at
 `~/.voicelogger/apps.json`. See [BRAINSTORM.md](BRAINSTORM.md) for where this is headed
-(auto-push on record, a per-app `voicelogger --app <name>` selector).
+(a per-app `voicelogger --app <name>` selector, per-app glossaries).
 
 ## Use as a library in another project
 

@@ -1,7 +1,8 @@
 import { existsSync } from "node:fs";
-import { copyFile, mkdir, writeFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { getApp, loadApps, removeApp, upsertApp } from "../apps.js";
+import { pushSessionToApp } from "../appPush.js";
 import { resolveSession } from "../store.js";
 import { positionals } from "./util.js";
 
@@ -81,34 +82,7 @@ async function pushApp(rest: string[]): Promise<void> {
     process.exit(20);
   }
 
-  const base = path.join(app.path, "voicelogs");
-  await Promise.all([
-    mkdir(path.join(base, "raw"), { recursive: true }),
-    mkdir(path.join(base, "cleaned"), { recursive: true }),
-    mkdir(path.join(base, "sessions"), { recursive: true }),
-  ]);
-
-  // Decision: push raw + cleaned + index (the full record), and rewrite the index's
-  // paths to the app-local copies so the app's voicelogs/ is self-contained. Copy
-  // (not symlink) so the app owns its data even if the source dir moves.
-  const copied: string[] = [];
-  const destRaw = path.join(base, "raw", `${session.id}.md`);
-  if (existsSync(session.rawPath)) {
-    await copyFile(session.rawPath, destRaw);
-    copied.push("raw");
-  }
-  let destCleaned: string | undefined;
-  if (session.cleanedPath && existsSync(session.cleanedPath)) {
-    destCleaned = path.join(base, "cleaned", `${session.id}.md`);
-    await copyFile(session.cleanedPath, destCleaned);
-    copied.push("cleaned");
-  }
-  const localIndex = { ...session, rawPath: destRaw, cleanedPath: destCleaned };
-  await writeFile(
-    path.join(base, "sessions", `${session.id}.json`),
-    JSON.stringify(localIndex, null, 2) + "\n",
-  );
-
+  const { base, copied } = await pushSessionToApp(session, app);
   console.log(`✓ pushed session ${session.id} → ${base}`);
   console.log(`  copied: ${copied.length ? copied.join(", ") : "(index only)"} + index`);
 }

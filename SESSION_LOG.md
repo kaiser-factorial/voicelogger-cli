@@ -55,10 +55,19 @@ copies the session's logs into it. Registry unit-tested; add→push→rm verifie
 - `AppEntry.bin` (per-app companion CLI, e.g. ledger) is a **PLACEHOLDER** — recorded but
   not used yet.
 
+### 4. `record --app <name>` (auto-push on record) — DONE
+Extracted the push into a shared `src/appPush.ts` (`pushSessionToApp`), reused by both
+`app push` and `record`. `record --app <name>` records → cleans → copies the finished
+session into `<app>/voicelogs/`. Push failures warn but never crash the recording.
+`pushSessionToApp` is unit-tested directly (raw+cleaned and raw-only cases), which also
+covers the `record --app` core. Default: pushes all three artifacts after cleanup (same
+decision as `app push`).
+
 **Deferred (need a quick decision or are bigger):**
-- Auto-push on `record` (a `record --app <name>` that pushes after cleanup).
-- Routing `link` notes through the per-app `bin`.
+- Routing `link` notes through the per-app `bin` (placeholder field exists).
 - Per-app glossary/template overrides.
+- Streaming partials, network/device `VoiceSource`, cross-platform mic — these need
+  infra/devices/other OSes I can't build+test here, so left for when that context exists.
 
 ## Status / what's committed
 6 autonomous commits this session: `doctor`, `list --json`, `app` (+ the 3 prior feature

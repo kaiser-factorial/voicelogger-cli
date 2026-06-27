@@ -1,3 +1,5 @@
+import { getApp } from "../apps.js";
+import { pushSessionToApp } from "../appPush.js";
 import { resolveAutoCleanMode } from "../cleanMode.js";
 import { hasAnthropicAuth, runClean } from "../cleanSession.js";
 import { config } from "../config.js";
@@ -15,7 +17,7 @@ import { optValue } from "./util.js";
  * session index; live transcript prints to the terminal. On finish, unless
  * disabled, runs the LLM cleaning pass and prints the edited markdown.
  *
- *   voicelogger record [--project <id>] [--no-clean | --clean [auto|prompt|off]]
+ *   voicelogger record [--project <id>] [--no-clean | --clean [auto|prompt|off]] [--app <name>]
  */
 export async function recordCommand(args: string[]): Promise<void> {
   const projectId = optValue(args, "--project", "-p");
@@ -48,6 +50,7 @@ export async function recordCommand(args: string[]): Promise<void> {
       console.log(`  raw:   ${session.rawPath}`);
       console.log(`  index: ${config.sessionsDir}/${session.id}.json`);
       await maybeAutoClean(session, args);
+      await maybePushToApp(session, args);
       process.exit(0);
     } catch (err) {
       console.error(
@@ -105,5 +108,22 @@ async function maybeAutoClean(session: VoiceLogSession, args: string[]): Promise
   } catch (err) {
     console.warn(`\n⚠ cleanup failed: ${err instanceof Error ? err.message : err}`);
     console.warn(`  the raw transcript is safe — retry with: voicelogger clean ${session.id}`);
+  }
+}
+
+/** If `--app <name>` was given, copy the finished session into that app's voicelogs/. */
+async function maybePushToApp(session: VoiceLogSession, args: string[]): Promise<void> {
+  const appName = optValue(args, "--app");
+  if (!appName) return;
+  const app = getApp(appName);
+  if (!app) {
+    console.warn(`\n⚠ unknown app '${appName}' — register it: voicelogger app add ${appName} <path>`);
+    return;
+  }
+  try {
+    const { base, copied } = await pushSessionToApp(session, app);
+    console.log(`\n✓ pushed to ${appName} → ${base} (${copied.join(", ") || "index only"} + index)`);
+  } catch (err) {
+    console.warn(`\n⚠ push to '${appName}' failed: ${err instanceof Error ? err.message : err}`);
   }
 }

@@ -39,6 +39,7 @@ export {
   type AppEntry,
   type AppRegistry,
 } from "./apps.js";
+export { pushSessionToApp } from "./appPush.js";
 export { resolveAutoCleanMode, parseCleanMode } from "./cleanMode.js";
 export { renderMarkdown, type RenderOptions } from "./markdown.js";
 
