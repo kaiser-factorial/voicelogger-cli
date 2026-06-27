@@ -28,7 +28,7 @@ const HELP = `voicelogger — local Whisper voice-logger
 commands:
   record [--project <id>]                  record the mic until Enter/Ctrl-C
   clean  <session|latest>                  clean a raw transcript with the LLM
-  list                                     list all sessions (newest first)
+  list [--json]                            list all sessions (newest first)
   show   <session|latest> [--raw|--cleaned]  print a transcript
   link   <session|latest> <projectId>      attach to a project (drops a ledger note)
            [--touch] [--reason <r>] [--note <n>] [--no-ledger]
@@ -59,7 +59,7 @@ async function main(): Promise<void> {
     case "clean":
       return cleanCommand(rest);
     case "list":
-      return listCommand();
+      return listCommand(rest);
     case "show":
       return showCommand(rest);
     case "link":

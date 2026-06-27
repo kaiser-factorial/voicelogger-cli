@@ -32,5 +32,10 @@ required check fails, so it's CI/script-friendly. New `src/commands/doctor.ts` (
 pure, unit-tested `doctorExitCode`); wired into `cli.ts` + help. Verified live here —
 ffmpeg/whisper/model ✓, key/ledger shown as optional `—`, exit 0.
 
-### 2. `voicelogger list --json` (machine-readable output)
-_in progress_
+### 2. `voicelogger list --json` (machine-readable output) — DONE
+`list` now accepts `--json`, printing the raw `VoiceLogSession[]` (empty → `[]`) for
+scripting and the eventual ledger/`--app` integration. Human format unchanged. Verified
+live against a temp data dir. (`listCommand` now takes `args`; `cli.ts` passes `rest`.)
+
+### 3. `--app` multi-app routing (roadmap item)
+_next — see "Decisions needed" below; building a first cut with safe defaults._

@@ -3,10 +3,18 @@ import { listSessions } from "../store.js";
 /**
  * List all voice-log sessions, newest first.
  *
- *   voicelogger list
+ *   voicelogger list [--json]
+ *
+ * --json prints the raw VoiceLogSession array (for scripting / other tools).
  */
-export async function listCommand(): Promise<void> {
+export async function listCommand(args: string[] = []): Promise<void> {
   const sessions = await listSessions();
+
+  if (args.includes("--json")) {
+    console.log(JSON.stringify(sessions, null, 2));
+    return;
+  }
+
   if (!sessions.length) {
     console.log("no voice log sessions yet — record one with: voicelogger record");
     return;

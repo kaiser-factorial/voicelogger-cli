@@ -53,7 +53,9 @@ voicelogger record                       # record, then auto-clean + show the ed
 voicelogger record --project rrg         # tag the session with a project id
 voicelogger record --no-clean            # keep raw only; skip the cleanup pass
 voicelogger record --clean prompt        # ask before cleaning this recording
+voicelogger doctor                       # check ffmpeg / whisper / model / key / ledger
 voicelogger list                         # all sessions, newest first
+voicelogger list --json                  # machine-readable session list
 voicelogger show latest                  # print the latest transcript (cleaned if present)
 voicelogger show latest --raw            # force the raw transcript
 voicelogger clean latest                 # LLM-clean the latest raw transcript
@@ -174,7 +176,7 @@ src/
   store.ts                 list/resolve/read sessions on disk
   userConfig.ts            per-machine config (~/.voicelogger/config.json, API key)
   ledger.ts                bridge to the `ledger` CLI
-  commands/                record · clean · list · show · link · config · download-model
+  commands/                record · clean · list · show · link · config · doctor · download-model
 ```
 
 Everything downstream of `VoiceSource` is source-agnostic, so a network/device source
