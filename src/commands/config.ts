@@ -334,34 +334,6 @@ async function wizardKeyStep(provider: Provider): Promise<void> {
  * Fetch the current list of free model IDs from OpenRouter's public models API.
  * Returns an empty array on any network/parse failure so callers can fall back gracefully.
  */
-const OPENROUTER_EXCLUDE = ["coder", "code", "content-safety", "embed", "vision", "omni", "vl"];
-
-/** Parse the first Nb number from a model ID (e.g. "550b" → 550, "31b" → 31). */
-function parseParamsBillions(id: string): number {
-  const m = id.match(/(\d+(?:\.\d+)?)b/i);
-  return m ? parseFloat(m[1]) : 0;
-}
-
-async function fetchOpenRouterFreeModels(maxParams = 72): Promise<string[]> {
-  try {
-    const res = await fetch("https://openrouter.ai/api/v1/models");
-    if (!res.ok) return [];
-    const data = (await res.json()) as { data?: Array<{ id: string; context_length?: number }> };
-    return (data.data ?? [])
-      .filter((m) => m.id.endsWith(":free"))
-      .filter((m) => !OPENROUTER_EXCLUDE.some((kw) => m.id.toLowerCase().includes(kw)))
-      .filter((m) => {
-        const p = parseParamsBillions(m.id);
-        return p === 0 || p <= maxParams; // keep models with no parseable size
-      })
-      .sort((a, b) => (b.context_length ?? 0) - (a.context_length ?? 0))
-      .map((m) => m.id)
-      .slice(0, 6);
-  } catch {
-    return [];
-  }
-}
-
 /** Step 4 — choose cleanup model. Shows a list scoped to the chosen provider. */
 async function wizardModelStep(provider: Provider): Promise<void> {
   type ModelOpt = { label: string; hint?: string; value: string };
@@ -379,14 +351,10 @@ async function wizardModelStep(provider: Provider): Promise<void> {
     ];
   } else if (provider === "openrouter") {
     heading = `${B("Step 4")} — Cleanup model (OpenRouter)`;
-    process.stdout.write("  Fetching available free models from OpenRouter…");
-    const live = await fetchOpenRouterFreeModels();
-    process.stdout.write(live.length ? ` ${live.length} found.\n\n` : " (offline, showing defaults)\n\n");
-    const modelIds = live.length
-      ? live
-      : ["meta-llama/llama-3.3-70b-instruct:free", "deepseek/deepseek-r1:free", "qwen/qwq-32b:free"];
     options = [
-      ...modelIds.map((id) => ({ label: id, value: id })),
+      { label: "poolside/laguna-m.1:free", hint: "solid general-purpose model", value: "poolside/laguna-m.1:free" },
+      { label: "poolside/laguna-xs.2:free", hint: "faster, lighter", value: "poolside/laguna-xs.2:free" },
+      { label: "openai/gpt-oss-20b:free", hint: "OpenAI open-source 20B", value: "openai/gpt-oss-20b:free" },
       { label: "type a custom model name", value: "__custom__" },
     ];
   } else {
