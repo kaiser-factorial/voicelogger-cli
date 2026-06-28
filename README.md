@@ -167,7 +167,7 @@ The cleaned file is printed styled in the terminal right when the recording fini
 | `voicelogger record --no-clean` | skips cleanup; raw only |
 | `VOICELOGGER_AUTOCLEAN=off` | skip by default (override per-recording with `--clean`) |
 
-No API key? voicelogger keeps the raw transcript and tells you how to clean it later.
+No LLM configured? voicelogger keeps the raw transcript and tells you how to clean it later.
 
 **LLM provider options:**
 
@@ -180,7 +180,7 @@ No API key? voicelogger keeps the raw transcript and tells you how to clean it l
 Switch provider any time:
 
 ```bash
-voicelogger config endpoint openrouter   # then pick a model from the live list
+voicelogger config endpoint openrouter   # prompts for key + model
 voicelogger config endpoint ollama
 voicelogger config endpoint default      # back to Anthropic
 ```
@@ -277,7 +277,7 @@ src/
   session.ts          orchestration → raw/<id>.md + sessions/<id>.json
   vad.ts              energy VAD with pre-roll (captures soft leading edges)
   transcriber.ts      whisper-cli wrapper
-  cleaner.ts          Anthropic SDK cleanup pass
+  cleaner.ts          LLM cleanup pass (Anthropic SDK or OpenAI-compatible endpoint)
   cleanSession.ts     runClean: raw → cleaned/<name>.md + index update
   markdown.ts         styled-terminal markdown renderer
   store.ts            list / resolve / read sessions on disk
