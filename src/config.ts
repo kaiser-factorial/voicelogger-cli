@@ -80,7 +80,7 @@ export interface Config {
   format: { sampleRate: number; channels: number };
 
   // --- cleaning (Part B agent, LLM-powered) ---
-  /** Anthropic model for `clean`. Default Opus 4.8; set CLAUDE_MODEL=claude-haiku-4-5 for speed/cost. */
+  /** Model name for the `clean` pass. Default sonnet-4-6; override with LLM_MODEL (or legacy CLAUDE_MODEL). */
   anthropicModel: string;
   cleanMaxTokens: number;
   glossaryPath: string;
@@ -125,8 +125,8 @@ export const config: Config = {
   format: { sampleRate: 16000, channels: 1 },
 
   // Default Sonnet 4.6 — best balance of cleanup quality vs cost. Override per-machine
-  // with `voicelogger config model <name>`, or per-call with the CLAUDE_MODEL env var.
-  anthropicModel: process.env.CLAUDE_MODEL ?? userCfg.anthropicModel ?? "claude-sonnet-4-6",
+  // with `voicelogger config model <name>`, or per-call with the LLM_MODEL env var.
+  anthropicModel: process.env.LLM_MODEL ?? process.env.CLAUDE_MODEL ?? userCfg.anthropicModel ?? "claude-sonnet-4-6",
   cleanMaxTokens: posInt(process.env.CLEAN_MAX_TOKENS, 16000),
   glossaryPath: process.env.GLOSSARY_PATH ?? path.join(packageRoot, "cleaning", "glossary.md"),
   templatePath: process.env.TEMPLATE_PATH ?? path.join(packageRoot, "cleaning", "template.md"),

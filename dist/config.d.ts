@@ -18,7 +18,7 @@ export interface Config {
         sampleRate: number;
         channels: number;
     };
-    /** Anthropic model for `clean`. Default Opus 4.8; set CLAUDE_MODEL=claude-haiku-4-5 for speed/cost. */
+    /** Model name for the `clean` pass. Default sonnet-4-6; override with LLM_MODEL (or legacy CLAUDE_MODEL). */
     anthropicModel: string;
     cleanMaxTokens: number;
     glossaryPath: string;

@@ -74,8 +74,8 @@ export const config = {
     whisperThreads: posInt(process.env.WHISPER_THREADS, 4),
     format: { sampleRate: 16000, channels: 1 },
     // Default Sonnet 4.6 — best balance of cleanup quality vs cost. Override per-machine
-    // with `voicelogger config model <name>`, or per-call with the CLAUDE_MODEL env var.
-    anthropicModel: process.env.CLAUDE_MODEL ?? userCfg.anthropicModel ?? "claude-sonnet-4-6",
+    // with `voicelogger config model <name>`, or per-call with the LLM_MODEL env var.
+    anthropicModel: process.env.LLM_MODEL ?? process.env.CLAUDE_MODEL ?? userCfg.anthropicModel ?? "claude-sonnet-4-6",
     cleanMaxTokens: posInt(process.env.CLEAN_MAX_TOKENS, 16000),
     glossaryPath: process.env.GLOSSARY_PATH ?? path.join(packageRoot, "cleaning", "glossary.md"),
     templatePath: process.env.TEMPLATE_PATH ?? path.join(packageRoot, "cleaning", "template.md"),

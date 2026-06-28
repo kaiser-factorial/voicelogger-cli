@@ -233,7 +233,7 @@ All settings are optional; the defaults work out of the box on macOS.
 | `ANTHROPIC_API_KEY` | — | Anthropic key for the cleanup pass |
 | `LLM_BASE_URL` | — | OpenAI-compatible endpoint (e.g. `https://openrouter.ai/api/v1`) |
 | `LLM_API_KEY` | — | API key for the above endpoint |
-| `CLAUDE_MODEL` | `claude-sonnet-4-6` | model name for cleanup (works for any provider) |
+| `LLM_MODEL` | `claude-sonnet-4-6` | model name for cleanup (works for any provider) |
 | `VOICELOG_DIR` | `~/voicelogger` | where `raw/`, `cleaned/`, `sessions/` live |
 | `VOICELOGGER_HOME` | `~/.voicelogger` | per-user home for the model + config |
 | `VOICELOGGER_AUTOCLEAN` | `auto` | `auto` \| `prompt` \| `off` |

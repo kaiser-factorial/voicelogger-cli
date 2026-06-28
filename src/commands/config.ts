@@ -66,7 +66,7 @@ function showConfig(): void {
   console.log(`anthropic key:      ${keyLine}`);
   console.log(`LLM endpoint:       ${endpointLine}`);
   console.log(`endpoint key:       ${endpointKeyLine}`);
-  console.log(`cleanup model:      ${sourced(config.anthropicModel, process.env.CLAUDE_MODEL, saved.anthropicModel)}`);
+  console.log(`cleanup model:      ${sourced(config.anthropicModel, process.env.LLM_MODEL ?? process.env.CLAUDE_MODEL, saved.anthropicModel)}`);
   console.log(`logs dir:           ${sourced(config.dataDir, process.env.VOICELOG_DIR, saved.dataDir)}`);
   console.log(`whisper model file: ${config.modelPath}`);
   console.log(`auto-clean:         ${config.autoCleanMode}`);
