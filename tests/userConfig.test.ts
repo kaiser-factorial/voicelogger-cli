@@ -45,6 +45,15 @@ test("ledgerBin round-trips and can be cleared with undefined", () => {
   assert.equal(loadUserConfig().ledgerBin, undefined);
 });
 
+test("anthropicModel round-trips and clears with undefined", () => {
+  saveUserConfig({ anthropicModel: "claude-haiku-4-5" });
+  assert.equal(loadUserConfig().anthropicModel, "claude-haiku-4-5");
+  // other fields survive the merge
+  assert.equal(loadUserConfig().anthropicApiKey, "sk-ant-test123");
+  saveUserConfig({ anthropicModel: undefined });
+  assert.equal(loadUserConfig().anthropicModel, undefined);
+});
+
 test("dataDir round-trips and clears with undefined", () => {
   saveUserConfig({ dataDir: "/var/voicelogs" });
   assert.equal(loadUserConfig().dataDir, "/var/voicelogs");

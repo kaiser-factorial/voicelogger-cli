@@ -36,8 +36,8 @@
     "download-model": "tsx src/cli.ts download-model",
     "test": "node --import tsx --test tests/*.test.ts",
     "smoke": "tsx scripts/smoke.ts",
-    "prepare": "tsc",
-    "prepublishOnly": "tsc"
+    "prepare": "node ./node_modules/typescript/bin/tsc",
+    "prepublishOnly": "node ./node_modules/typescript/bin/tsc"
   },
   "repository": {
     "type": "git",

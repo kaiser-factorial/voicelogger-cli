@@ -105,10 +105,13 @@ const COMMANDS: Command[] = [
     group: "Setup",
     short: "set your API key + preferences",
     summary: "set the Anthropic API key (wizard) / show config",
-    usage: "voicelogger config [show | dir <path|default> | ledger <path|off>]",
+    usage:
+      "voicelogger config [show | dir <path|default> | model <name|default> | ledger <path|off>]",
     options: `  (no arg)            run the wizard (API key + where to save logs)
   show                print the resolved config (key masked)
   dir <path>          set where logs save  ('default' to reset)
+  model <name>        set the cleanup model  ('default' to reset)
+                      e.g. claude-sonnet-4-6, claude-haiku-4-5, claude-opus-4-8
   ledger <path>       connect a project tracker CLI  ('off' to disconnect)`,
     run: configCommand,
   },

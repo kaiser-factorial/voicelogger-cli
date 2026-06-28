@@ -17,6 +17,7 @@ import { configFilePath, loadUserConfig, saveUserConfig } from "../userConfig.js
 export async function configCommand(args: string[]): Promise<void> {
   if (args[0] === "show") return showConfig();
   if (args[0] === "dir") return configDir(args.slice(1));
+  if (args[0] === "model") return configModel(args.slice(1));
   if (args[0] === "ledger") return configLedger(args.slice(1));
   return runWizard();
 }
@@ -34,30 +35,53 @@ function maskKey(key: string | undefined): string {
 }
 
 function showConfig(): void {
-  const saved = loadUserConfig().anthropicApiKey;
+  const saved = loadUserConfig();
   // config.ts may have copied the saved key into the env, so treat the env as an
   // external override only when it differs from what's saved.
-  const env = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN;
+  const envKey = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN;
   let keyLine: string;
-  if (env && env !== saved) keyLine = `${maskKey(env)}  (from environment — overrides saved)`;
-  else if (saved) keyLine = `${maskKey(saved)}  (from saved config)`;
+  if (envKey && envKey !== saved.anthropicApiKey)
+    keyLine = `${maskKey(envKey)}  (from environment — overrides saved)`;
+  else if (saved.anthropicApiKey) keyLine = `${maskKey(saved.anthropicApiKey)}  (from saved config)`;
   else keyLine = "(not set — run: voicelogger config)";
 
   const tracker = config.ledgerEnabled ? config.ledgerBin : "(not connected)";
-  // Source-of-truth for the data dir, mirroring the resolution in config.ts.
-  const savedDir = loadUserConfig().dataDir;
-  const envDir = process.env.VOICELOG_DIR;
-  let dirLine = `${config.dataDir}`;
-  if (envDir) dirLine += "  (from environment)";
-  else if (savedDir) dirLine += "  (from saved config)";
-  else dirLine += "  (default)";
 
-  console.log(`config file:      ${configFilePath()}`);
-  console.log(`anthropic key:    ${keyLine}`);
-  console.log(`data dir:         ${dirLine}`);
-  console.log(`model:            ${config.modelPath}`);
-  console.log(`auto-clean:       ${config.autoCleanMode}`);
-  console.log(`project tracker:  ${tracker}`);
+  // Render <value>  (from <source>) — same shape as the API key line.
+  const sourced = (value: string, env: string | undefined, savedVal: string | undefined) => {
+    if (env) return `${value}  (from environment)`;
+    if (savedVal !== undefined) return `${value}  (from saved config)`;
+    return `${value}  (default)`;
+  };
+
+  console.log(`config file:        ${configFilePath()}`);
+  console.log(`anthropic key:      ${keyLine}`);
+  console.log(`logs dir:           ${sourced(config.dataDir, process.env.VOICELOG_DIR, saved.dataDir)}`);
+  console.log(`cleanup model:      ${sourced(config.anthropicModel, process.env.CLAUDE_MODEL, saved.anthropicModel)}`);
+  console.log(`whisper model file: ${config.modelPath}`);
+  console.log(`auto-clean:         ${config.autoCleanMode}`);
+  console.log(`project tracker:    ${tracker}`);
+}
+
+/** Set (or reset) the Anthropic model used for cleanup. */
+function configModel(rest: string[]): void {
+  const value = rest[0];
+  if (!value) {
+    console.log(`cleanup model: ${config.anthropicModel}`);
+    console.log("usage: voicelogger config model <name>  (or 'default' to reset)");
+    console.log("examples:");
+    console.log("  claude-sonnet-4-6  (default — balanced)");
+    console.log("  claude-haiku-4-5   (cheaper / faster)");
+    console.log("  claude-opus-4-8    (highest quality, most expensive)");
+    return;
+  }
+  if (value === "default") {
+    saveUserConfig({ anthropicModel: undefined });
+    console.log("✓ reset to the default cleanup model.");
+    return;
+  }
+  saveUserConfig({ anthropicModel: value });
+  console.log(`✓ cleanup will use ${value}`);
 }
 
 /** Set (or reset) where logs are saved. Use `default` to drop the saved override. */

@@ -31,7 +31,10 @@ function defaultDataDir(): string {
   const legacy = path.join(home, "Projects", "voice_logs");
   return existsSync(legacy) ? legacy : path.join(home, "voicelogger");
 }
-const dataDir = process.env.VOICELOG_DIR ?? loadUserConfig().dataDir ?? defaultDataDir();
+// Cache the saved config — referenced by several settings below, and the underlying
+// loadUserConfig() does a readFileSync each call.
+const userCfg = loadUserConfig();
+const dataDir = process.env.VOICELOG_DIR ?? userCfg.dataDir ?? defaultDataDir();
 
 const MODEL_FILE = "ggml-base.en.bin";
 
@@ -97,7 +100,7 @@ const mic = micDefaults(process.platform);
 
 // Project-tracker integration is opt-in: off unless LEDGER_BIN is set or a path was
 // saved via `voicelogger config ledger <path>`.
-const ledgerBin = process.env.LEDGER_BIN ?? loadUserConfig().ledgerBin ?? "";
+const ledgerBin = process.env.LEDGER_BIN ?? userCfg.ledgerBin ?? "";
 
 export const config: Config = {
   dataDir,
@@ -115,7 +118,9 @@ export const config: Config = {
   whisperThreads: posInt(process.env.WHISPER_THREADS, 4),
   format: { sampleRate: 16000, channels: 1 },
 
-  anthropicModel: process.env.CLAUDE_MODEL ?? "claude-opus-4-8",
+  // Default Sonnet 4.6 — best balance of cleanup quality vs cost. Override per-machine
+  // with `voicelogger config model <name>`, or per-call with the CLAUDE_MODEL env var.
+  anthropicModel: process.env.CLAUDE_MODEL ?? userCfg.anthropicModel ?? "claude-sonnet-4-6",
   cleanMaxTokens: posInt(process.env.CLEAN_MAX_TOKENS, 16000),
   glossaryPath: process.env.GLOSSARY_PATH ?? path.join(packageRoot, "cleaning", "glossary.md"),
   templatePath: process.env.TEMPLATE_PATH ?? path.join(packageRoot, "cleaning", "template.md"),
