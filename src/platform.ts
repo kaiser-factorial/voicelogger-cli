@@ -18,6 +18,25 @@ export interface MicDefaults {
   note: string;
 }
 
+const PLATFORM_NAMES: Partial<Record<NodeJS.Platform, string>> = {
+  darwin: "macOS",
+  linux: "Linux",
+  win32: "Windows",
+};
+
+/**
+ * A human-friendly mic label for the `record` header: the platform's name + "default"
+ * when nothing's been overridden, or the configured device value when it has.
+ */
+export function micLabel(platform: NodeJS.Platform, format: string, device: string): string {
+  const d = micDefaults(platform);
+  const platformName = PLATFORM_NAMES[platform] ?? platform;
+  if (format === d.format && device === d.device) {
+    return device ? `${platformName} default` : "(set MIC_DEVICE)";
+  }
+  return device || "(set MIC_DEVICE)";
+}
+
 export function micDefaults(platform: NodeJS.Platform): MicDefaults {
   switch (platform) {
     case "darwin":

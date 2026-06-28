@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { micDefaults } from "../src/platform.js";
+import { micDefaults, micLabel } from "../src/platform.js";
 
 test("macOS mic defaults are avfoundation/:0 and verified (no regression)", () => {
   const m = micDefaults("darwin");
@@ -27,6 +27,18 @@ test("unknown platform falls back and is flagged unsupported", () => {
   const m = micDefaults("sunos" as NodeJS.Platform);
   assert.equal(m.supported, false);
   assert.ok(m.format && m.note.includes("sunos"));
+});
+
+test("micLabel: defaults render as a friendly platform name", () => {
+  assert.equal(micLabel("darwin", "avfoundation", ":0"), "macOS default");
+  assert.equal(micLabel("linux", "alsa", "default"), "Linux default");
+});
+
+test("micLabel: shows the configured device when overridden", () => {
+  // a custom MIC_DEVICE on macOS surfaces verbatim (e.g. selecting a non-default mic)
+  assert.equal(micLabel("darwin", "avfoundation", ":1"), ":1");
+  // Windows with no device set should prompt the user
+  assert.equal(micLabel("win32", "dshow", ""), "(set MIC_DEVICE)");
 });
 
 test("config wires the platform default when MIC_FORMAT is unset", async () => {

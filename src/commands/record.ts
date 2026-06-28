@@ -4,6 +4,7 @@ import { resolveAutoCleanMode } from "../cleanMode.js";
 import { hasAnthropicAuth, runClean } from "../cleanSession.js";
 import { config } from "../config.js";
 import { renderMarkdown } from "../markdown.js";
+import { micLabel } from "../platform.js";
 import { confirm } from "../prompt.js";
 import { SessionRecorder } from "../session.js";
 import { setupApiKey } from "../setupKey.js";
@@ -31,10 +32,9 @@ export async function recordCommand(args: string[]): Promise<void> {
   // Show session info immediately; "Speak now" prints only after the mic is live
   // (recorder.start() now waits for ffmpeg's first PCM chunk).
   console.log(`● starting — session ${recorder.session.id}`);
-  console.log(`  raw:    ${recorder.session.rawPath}`);
-  console.log(`  model:  ${config.modelPath}`);
-  console.log(`  device: ${config.micFormat} ${config.micDevice}`);
-  console.log(projectId ? `  project: ${projectId}` : "  project: (unlinked)");
+  console.log(`  raw:     ${recorder.session.rawPath}`);
+  console.log(`  mic:     ${micLabel(process.platform, config.micFormat, config.micDevice)}`);
+  console.log(`  project: ${projectId ?? "(unlinked)"}`);
 
   await recorder.start();
 
