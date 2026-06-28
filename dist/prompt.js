@@ -1,0 +1,52 @@
+import * as readline from "node:readline";
+/** Yes/no prompt. Non-interactive stdin returns the default without asking. */
+export function confirm(question, defaultYes = true) {
+    if (!process.stdin.isTTY)
+        return Promise.resolve(defaultYes);
+    return new Promise((resolve) => {
+        const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+        rl.question(question, (answer) => {
+            rl.close();
+            const a = answer.trim().toLowerCase();
+            resolve(a === "" ? defaultYes : a === "y" || a === "yes");
+        });
+    });
+}
+/** Read a single line from a TTY (visible). Non-interactive stdin → empty string. */
+export function promptLine(prompt) {
+    if (!process.stdin.isTTY)
+        return Promise.resolve("");
+    return new Promise((resolve) => {
+        const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+        rl.question(prompt, (answer) => {
+            rl.close();
+            resolve(answer);
+        });
+    });
+}
+/** Read a line from a TTY without echoing what is typed (password-style). */
+export function promptHidden(prompt) {
+    return new Promise((resolve) => {
+        const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout,
+            terminal: true,
+        });
+        let muted = false;
+        // Suppress echo of typed characters once muted; the prompt is written before
+        // muting, so it still shows.
+        rl._writeToOutput = (s) => {
+            if (!muted)
+                process.stdout.write(s);
+        };
+        process.stdout.write(prompt);
+        muted = true;
+        rl.question("", (answer) => {
+            muted = false;
+            rl.close();
+            process.stdout.write("\n");
+            resolve(answer);
+        });
+    });
+}
+//# sourceMappingURL=prompt.js.map
