@@ -197,6 +197,9 @@ function configLedger(rest) {
     console.log(`✓ connected project tracker → ${stored}`);
     console.log("  `voicelogger link <session> <project>` will now notify it.");
 }
+const B = process.stdout.isTTY && !process.env.NO_COLOR
+    ? (s) => `\x1b[1m${s}\x1b[0m`
+    : (s) => s;
 async function runWizard() {
     if (!process.stdin.isTTY) {
         console.error("voicelogger config needs an interactive terminal.");
@@ -212,7 +215,7 @@ async function runWizard() {
 }
 /** Step 1 — where logs save. Enter keeps the current effective dir. */
 async function wizardDirStep() {
-    console.log("Step 1 — Where to save your voice logs");
+    console.log(`${B("Step 1")} — Where to save your voice logs`);
     console.log(`  (press Enter to keep: ${config.dataDir})\n`);
     const answer = (await promptLine("  > ")).trim();
     if (answer) {
@@ -226,11 +229,11 @@ async function wizardDirStep() {
 }
 /** Step 2 — choose LLM provider. Saves the endpoint (or clears it for Anthropic). */
 async function wizardProviderStep() {
-    console.log("Step 2 — LLM provider for transcript cleanup");
+    console.log(`${B("Step 2")} — LLM provider for transcript cleanup`);
     console.log("  Your transcript text is sent to this provider for cleaning.\n");
     const idx = await promptChoice([
-        { label: "Anthropic", hint: "Claude models — best quality, needs an API key" },
-        { label: "OpenRouter", hint: "free models available, no Anthropic account needed" },
+        { label: "Anthropic", hint: "API key required" },
+        { label: "OpenRouter", hint: "free models available — API key required" },
         { label: "Ollama", hint: "runs 100% locally, completely private, no API key" },
     ], 0);
     console.log();
@@ -250,14 +253,14 @@ async function wizardProviderStep() {
 /** Step 3 — API key (skipped for Ollama). */
 async function wizardKeyStep(provider) {
     if (provider === "ollama") {
-        console.log("Step 3 — API key");
+        console.log(`${B("Step 3")} — API key`);
         console.log("  Ollama runs locally — no API key needed.\n");
         console.log("  Make sure it's running: ollama serve");
         console.log("  Pull a model if you haven't: ollama pull llama3.2\n");
         return;
     }
     if (provider === "anthropic") {
-        console.log("Step 3 — Anthropic API key");
+        console.log(`${B("Step 3")} — Anthropic API key`);
         console.log("  Get one at: https://console.anthropic.com/settings/keys\n");
         const existing = loadUserConfig().anthropicApiKey;
         if (existing) {
@@ -280,7 +283,7 @@ async function wizardKeyStep(provider) {
         return;
     }
     // OpenRouter
-    console.log("Step 3 — OpenRouter API key");
+    console.log(`${B("Step 3")} — OpenRouter API key`);
     console.log("  Free tier available — get a key at: https://openrouter.ai/keys\n");
     const existing = loadUserConfig().llmApiKey;
     if (existing) {
@@ -325,7 +328,7 @@ async function wizardModelStep(provider) {
     let heading;
     let options;
     if (provider === "anthropic") {
-        heading = "Step 4 — Cleanup model";
+        heading = `${B("Step 4")} — Cleanup model`;
         options = [
             { label: "claude-sonnet-4-6", hint: "balanced — great quality, reasonable cost", value: "claude-sonnet-4-6" },
             { label: "claude-haiku-4-5", hint: "faster and cheaper, good for quick notes", value: "claude-haiku-4-5" },
@@ -334,7 +337,7 @@ async function wizardModelStep(provider) {
         ];
     }
     else if (provider === "openrouter") {
-        heading = "Step 4 — Cleanup model (OpenRouter)";
+        heading = `${B("Step 4")} — Cleanup model (OpenRouter)`;
         process.stdout.write("  Fetching available free models from OpenRouter…");
         const live = await fetchOpenRouterFreeModels();
         process.stdout.write(live.length ? ` ${live.length} found.\n\n` : " (offline, showing defaults)\n\n");
@@ -347,7 +350,7 @@ async function wizardModelStep(provider) {
         ];
     }
     else {
-        heading = "Step 4 — Cleanup model (Ollama)";
+        heading = `${B("Step 4")} — Cleanup model (Ollama)`;
         options = [
             { label: "llama3.2", hint: "recommended — fast and capable", value: "llama3.2" },
             { label: "mistral", hint: "solid general-purpose model", value: "mistral" },
