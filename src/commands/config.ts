@@ -250,7 +250,7 @@ async function wizardProviderStep(): Promise<Provider> {
 
   const idx = await promptChoice(
     [
-      { label: "Anthropic", hint: "API key required" },
+      { label: "Anthropic", hint: "best quality — API key required" },
       { label: "OpenRouter", hint: "free models available — API key required" },
       { label: "Ollama", hint: "runs 100% locally, completely private, no API key" },
     ],

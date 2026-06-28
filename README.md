@@ -50,17 +50,23 @@ voicelogger download-model
 Fetches the `base.en` model (~141 MB) to `~/.voicelogger/models/`. One-time, takes about
 30 seconds.
 
-### 4. Set your Anthropic API key *(optional — for LLM cleanup)*
+### 4. Choose your LLM provider *(optional — for cleanup)*
 
 ```bash
 voicelogger config
 ```
 
-The wizard asks for your [Anthropic API key](https://console.anthropic.com/settings/keys).
-It's entered hidden and stored at `~/.voicelogger/config.json` with owner-only permissions.
+The wizard walks you through four steps:
 
-Skip this if you only want raw transcripts — voicelogger works fine without a key, it just
-won't auto-clean.
+1. **Where to save logs** — defaults to `~/voicelogger/`, press Enter to keep it
+2. **LLM provider** — choose one:
+   - **Anthropic** — best quality; needs an [API key](https://console.anthropic.com/settings/keys)
+   - **OpenRouter** — free models available; needs a [free key](https://openrouter.ai/keys)
+   - **Ollama** — runs entirely on your machine, no key, no internet
+3. **API key** — entered hidden, stored at `~/.voicelogger/config.json` with owner-only permissions (skipped for Ollama)
+4. **Model** — pick from a live list for your chosen provider
+
+Skip the whole step if you only want raw transcripts — voicelogger works without a key, it just won't auto-clean.
 
 ### 5. Check everything is ready
 
@@ -126,11 +132,14 @@ voicelogger app push latest myapp            # copy session into that dir's voic
 voicelogger app list / app rm myapp
 
 # Setup
-voicelogger config                       # run the setup wizard (key + logs dir)
-voicelogger config show                  # print current config (key masked)
-voicelogger config model <name>          # set the cleanup model
-voicelogger config dir <path>            # set where logs save ('default' to reset)
-voicelogger download-model               # fetch the Whisper model
+voicelogger config                           # run the setup wizard
+voicelogger config show                      # print current config (keys masked)
+voicelogger config endpoint openrouter       # switch to OpenRouter (prompts for key)
+voicelogger config endpoint ollama           # switch to Ollama (no key needed)
+voicelogger config endpoint default          # switch back to Anthropic
+voicelogger config model <name>              # set the cleanup model
+voicelogger config dir <path>                # set where logs save ('default' to reset)
+voicelogger download-model                   # fetch the Whisper model
 voicelogger version
 ```
 
@@ -160,10 +169,27 @@ The cleaned file is printed styled in the terminal right when the recording fini
 
 No API key? voicelogger keeps the raw transcript and tells you how to clean it later.
 
+**LLM provider options:**
+
+| Provider | Quality | Cost | Setup |
+|---|---|---|---|
+| Anthropic (default) | Best | Pay-per-token | [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys) |
+| OpenRouter | Good | Free tier available | [openrouter.ai/keys](https://openrouter.ai/keys) |
+| Ollama | Good | Free, local | `brew install ollama && ollama pull llama3.2` |
+
+Switch provider any time:
+
+```bash
+voicelogger config endpoint openrouter   # then pick a model from the live list
+voicelogger config endpoint ollama
+voicelogger config endpoint default      # back to Anthropic
+```
+
 **Change the cleanup model:**
 
 ```bash
-voicelogger config model claude-haiku-4-5    # faster and cheaper
+voicelogger config model claude-haiku-4-5    # faster and cheaper (Anthropic)
+voicelogger config model llama3.2            # if using Ollama
 voicelogger config model default             # reset to claude-sonnet-4-6
 ```
 
@@ -204,11 +230,13 @@ All settings are optional; the defaults work out of the box on macOS.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | — | required for the cleanup pass |
+| `ANTHROPIC_API_KEY` | — | Anthropic key for the cleanup pass |
+| `LLM_BASE_URL` | — | OpenAI-compatible endpoint (e.g. `https://openrouter.ai/api/v1`) |
+| `LLM_API_KEY` | — | API key for the above endpoint |
+| `CLAUDE_MODEL` | `claude-sonnet-4-6` | model name for cleanup (works for any provider) |
 | `VOICELOG_DIR` | `~/voicelogger` | where `raw/`, `cleaned/`, `sessions/` live |
 | `VOICELOGGER_HOME` | `~/.voicelogger` | per-user home for the model + config |
 | `VOICELOGGER_AUTOCLEAN` | `auto` | `auto` \| `prompt` \| `off` |
-| `CLAUDE_MODEL` | `claude-sonnet-4-6` | Anthropic model for cleanup |
 | `WHISPER_MODEL` | `~/.voicelogger/models/ggml-base.en.bin` | model path |
 | `WHISPER_BIN` | `whisper-cli` | whisper.cpp binary |
 | `WHISPER_THREADS` | `4` | threads for transcription |

@@ -232,7 +232,7 @@ async function wizardProviderStep() {
     console.log(`${B("Step 2")} — LLM provider for transcript cleanup`);
     console.log("  Your transcript text is sent to this provider for cleaning.\n");
     const idx = await promptChoice([
-        { label: "Anthropic", hint: "API key required" },
+        { label: "Anthropic", hint: "best quality — API key required" },
         { label: "OpenRouter", hint: "free models available — API key required" },
         { label: "Ollama", hint: "runs 100% locally, completely private, no API key" },
     ], 0);
