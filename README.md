@@ -71,8 +71,9 @@ voicelogger version
 A `<session>` argument can be a full id, a unique id prefix, or `latest`.
 
 macOS prompts once for microphone permission for the terminal running `record`. The
-live transcript prints as each utterance is recognized; files land under `VOICELOG_DIR`
-(default `~/Projects/voice_logs`).
+live transcript prints as each utterance is recognized; files land under your logs
+directory (default `~/voicelogger/` for a fresh install — change it via the `config`
+wizard, `voicelogger config dir <path>`, or `VOICELOG_DIR`).
 
 ## Cleanup — the edited markdown
 
