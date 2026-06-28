@@ -3,3 +3,5 @@ models/
 *.log
 .DS_Store
 .env
+BRAINSTORM*
+SESSION_LOG*
