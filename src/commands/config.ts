@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { config } from "../config.js";
-import { promptLine } from "../prompt.js";
+import { confirm, promptLine } from "../prompt.js";
 import { setupApiKey } from "../setupKey.js";
 import { configFilePath, loadUserConfig, saveUserConfig } from "../userConfig.js";
 
@@ -112,28 +112,52 @@ async function runWizard(): Promise<void> {
     process.exit(1);
   }
 
-  console.log("voicelogger setup — your settings are saved locally.\n");
+  console.log("voicelogger setup — two steps, each skippable.");
+  console.log(`(settings saved locally to ${configFilePath()})\n`);
 
-  // Step 1 — API key (input is hidden).
-  const file = await setupApiKey();
-  if (!file) {
-    console.error("no key entered — nothing saved.");
-    process.exit(1);
+  await wizardKeyStep();
+  await wizardDirStep();
+
+  console.log("\nAll set. Try: voicelogger record");
+}
+
+/** Step 1 — Anthropic API key. Explains what it's for, where to get one, and skippable. */
+async function wizardKeyStep(): Promise<void> {
+  console.log("Step 1 of 2 — Anthropic API key");
+  console.log("  Used to LLM-clean your raw transcripts (remove 'um's, fix terms,");
+  console.log("  organize into sections). Without it you'll get the raw transcript only.");
+  console.log("  Get one at: https://console.anthropic.com/settings/keys\n");
+
+  const existing = loadUserConfig().anthropicApiKey;
+  if (existing) {
+    console.log(`  You already have a key saved: ${maskKey(existing)}`);
+    if (!(await confirm("  Replace it? [y/N] ", false))) {
+      console.log("  ✓ keeping your existing key.\n");
+      return;
+    }
   }
-  console.log(`✓ API key saved to ${file} (permissions 600)`);
 
-  // Step 2 — where logs save. Suggest the current effective dir as default so
-  // hitting Enter is always a no-op for "keep what I have."
-  console.log("\nWhere should your voice logs save?");
-  console.log(`(press Enter to keep the default: ${config.dataDir})`);
-  const answer = (await promptLine("> ")).trim();
+  console.log("  Paste your key below (input is hidden), or press Enter to skip.");
+  const file = await setupApiKey();
+  if (file) {
+    console.log(`  ✓ API key saved (permissions 600).\n`);
+  } else {
+    console.log(
+      "  ⚠ skipped — re-run 'voicelogger config' any time, or set ANTHROPIC_API_KEY in your shell.\n",
+    );
+  }
+}
+
+/** Step 2 — where logs save. Enter keeps the current effective dir (a no-op). */
+async function wizardDirStep(): Promise<void> {
+  console.log("Step 2 of 2 — Where to save your voice logs");
+  console.log(`  (press Enter to keep the default: ${config.dataDir})`);
+  const answer = (await promptLine("  > ")).trim();
   if (answer) {
     const abs = resolvePath(answer);
     saveUserConfig({ dataDir: abs });
-    console.log(`✓ logs will save to ${abs}`);
+    console.log(`  ✓ logs will save to ${abs}`);
   } else {
-    console.log(`✓ logs will save to ${config.dataDir}`);
+    console.log(`  ✓ logs will save to ${config.dataDir}`);
   }
-
-  console.log("\nAll set. Try: voicelogger record");
 }
