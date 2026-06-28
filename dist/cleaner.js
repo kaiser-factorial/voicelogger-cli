@@ -54,21 +54,28 @@ async function cleanWithOpenAICompat(rawBody, inputs) {
     const headers = { "Content-Type": "application/json" };
     if (config.llmApiKey)
         headers["Authorization"] = `Bearer ${config.llmApiKey}`;
-    const res = await fetch(`${config.llmBaseUrl}/chat/completions`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-            model: config.anthropicModel,
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: rawBody },
-            ],
-            response_format: { type: "json_object" },
-        }),
+    const body = JSON.stringify({
+        model: config.anthropicModel,
+        messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: rawBody },
+        ],
+        response_format: { type: "json_object" },
     });
+    const MAX_RETRIES = 3;
+    let res;
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        res = await fetch(`${config.llmBaseUrl}/chat/completions`, { method: "POST", headers, body });
+        if (res.status !== 429)
+            break;
+        const retryAfter = Number(res.headers.get("Retry-After") ?? "2");
+        const delaySec = Math.min(Math.max(retryAfter, 1), 10);
+        process.stderr.write(`  rate-limited — retrying in ${delaySec}s (attempt ${attempt + 1}/${MAX_RETRIES})…\n`);
+        await new Promise((r) => setTimeout(r, delaySec * 1000));
+    }
     if (!res.ok) {
-        const body = await res.text().catch(() => res.statusText);
-        throw new Error(`LLM request failed (${res.status}): ${body}`);
+        const errBody = await res.text().catch(() => res.statusText);
+        throw new Error(`LLM request failed (${res.status}): ${errBody}`);
     }
     const data = (await res.json());
     const content = data.choices?.[0]?.message?.content;
