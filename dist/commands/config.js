@@ -308,7 +308,12 @@ async function wizardKeyStep(provider) {
  * Returns an empty array on any network/parse failure so callers can fall back gracefully.
  */
 const OPENROUTER_EXCLUDE = ["coder", "code", "content-safety", "embed", "vision", "omni", "vl"];
-async function fetchOpenRouterFreeModels() {
+/** Parse the first Nb number from a model ID (e.g. "550b" → 550, "31b" → 31). */
+function parseParamsBillions(id) {
+    const m = id.match(/(\d+(?:\.\d+)?)b/i);
+    return m ? parseFloat(m[1]) : 0;
+}
+async function fetchOpenRouterFreeModels(maxParams = 72) {
     try {
         const res = await fetch("https://openrouter.ai/api/v1/models");
         if (!res.ok)
@@ -317,6 +322,10 @@ async function fetchOpenRouterFreeModels() {
         return (data.data ?? [])
             .filter((m) => m.id.endsWith(":free"))
             .filter((m) => !OPENROUTER_EXCLUDE.some((kw) => m.id.toLowerCase().includes(kw)))
+            .filter((m) => {
+            const p = parseParamsBillions(m.id);
+            return p === 0 || p <= maxParams; // keep models with no parseable size
+        })
             .sort((a, b) => (b.context_length ?? 0) - (a.context_length ?? 0))
             .map((m) => m.id)
             .slice(0, 6);
