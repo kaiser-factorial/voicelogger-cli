@@ -2,8 +2,7 @@ import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { config } from "../config.js";
-import { confirm, promptLine } from "../prompt.js";
-import { setupApiKey } from "../setupKey.js";
+import { confirm, promptChoice, promptHidden, promptLine } from "../prompt.js";
 import { configFilePath, loadUserConfig, saveUserConfig } from "../userConfig.js";
 /**
  * Manage per-machine config (saved at ~/.voicelogger/config.json).
@@ -204,48 +203,153 @@ function configLedger(rest) {
 async function runWizard() {
     if (!process.stdin.isTTY) {
         console.error("voicelogger config needs an interactive terminal.");
-        console.error("Non-interactively, set the env var instead: export ANTHROPIC_API_KEY=…");
+        console.error("Non-interactively, set env vars: ANTHROPIC_API_KEY, LLM_BASE_URL, etc.");
         process.exit(1);
     }
-    console.log(`voicelogger setup: settings saved locally to ${configFilePath()}\n`);
-    await wizardKeyStep();
+    console.log(`voicelogger setup — settings saved to ${configFilePath()}\n`);
     await wizardDirStep();
-    console.log("\nAll set. Try: voicelogger record");
+    const provider = await wizardProviderStep();
+    await wizardKeyStep(provider);
+    await wizardModelStep(provider);
+    console.log("All set. Try: voicelogger record");
 }
-/** Step 1 — Anthropic API key. Explains what it's for, where to get one, and skippable. */
-async function wizardKeyStep() {
-    console.log("Step 1 of 2 — Anthropic API key\n");
-    console.log("  Used to clean your raw transcripts: no key = raw transcript only.");
-    console.log("  Get one at: https://console.anthropic.com/settings/keys\n");
-    const existing = loadUserConfig().anthropicApiKey;
-    if (existing) {
-        console.log(`  You already have a key saved: ${maskKey(existing)}`);
-        if (!(await confirm("  Replace it? [y/N] ", false))) {
-            console.log("  ✓ keeping your existing key.\n");
-            return;
-        }
-    }
-    console.log("  Paste your key below (input is hidden), or press Enter to skip.");
-    const file = await setupApiKey();
-    if (file) {
-        console.log(`  ✓ API key saved (permissions 600).\n`);
-    }
-    else {
-        console.log("  ⚠ skipped — re-run 'voicelogger config' any time, or set ANTHROPIC_API_KEY in your shell.\n");
-    }
-}
-/** Step 2 — where logs save. Enter keeps the current effective dir (a no-op). */
+/** Step 1 — where logs save. Enter keeps the current effective dir. */
 async function wizardDirStep() {
-    console.log("Step 2 of 2 — Where to save your voice logs");
-    console.log(`  (press Enter to keep the default: ${config.dataDir})`);
+    console.log("Step 1 — Where to save your voice logs");
+    console.log(`  (press Enter to keep: ${config.dataDir})\n`);
     const answer = (await promptLine("  > ")).trim();
     if (answer) {
         const abs = resolvePath(answer);
         saveUserConfig({ dataDir: abs });
-        console.log(`  ✓ logs will save to ${abs}`);
+        console.log(`  ✓ logs will save to ${abs}\n`);
     }
     else {
-        console.log(`  ✓ logs will save to ${config.dataDir}`);
+        console.log(`  ✓ ${config.dataDir}\n`);
     }
+}
+/** Step 2 — choose LLM provider. Saves the endpoint (or clears it for Anthropic). */
+async function wizardProviderStep() {
+    console.log("Step 2 — LLM provider for transcript cleanup");
+    console.log("  Your transcript text is sent to this provider for cleaning.\n");
+    const idx = await promptChoice([
+        { label: "Anthropic", hint: "Claude models — best quality, needs an API key" },
+        { label: "OpenRouter", hint: "free models available, no Anthropic account needed" },
+        { label: "Ollama", hint: "runs 100% locally, completely private, no API key" },
+    ], 0);
+    console.log();
+    const providers = ["anthropic", "openrouter", "ollama"];
+    const chosen = providers[idx];
+    if (chosen === "anthropic") {
+        saveUserConfig({ llmBaseUrl: undefined, llmApiKey: undefined });
+    }
+    else if (chosen === "openrouter") {
+        saveUserConfig({ llmBaseUrl: "https://openrouter.ai/api/v1" });
+    }
+    else {
+        saveUserConfig({ llmBaseUrl: "http://localhost:11434/v1", llmApiKey: undefined });
+    }
+    return chosen;
+}
+/** Step 3 — API key (skipped for Ollama). */
+async function wizardKeyStep(provider) {
+    if (provider === "ollama") {
+        console.log("Step 3 — API key");
+        console.log("  Ollama runs locally — no API key needed.\n");
+        console.log("  Make sure it's running: ollama serve");
+        console.log("  Pull a model if you haven't: ollama pull llama3.2\n");
+        return;
+    }
+    if (provider === "anthropic") {
+        console.log("Step 3 — Anthropic API key");
+        console.log("  Get one at: https://console.anthropic.com/settings/keys\n");
+        const existing = loadUserConfig().anthropicApiKey;
+        if (existing) {
+            console.log(`  Saved key: ${maskKey(existing)}`);
+            if (!(await confirm("  Replace it? [y/N] ", false))) {
+                console.log("  ✓ keeping existing key.\n");
+                return;
+            }
+        }
+        console.log("  Paste your key below (input is hidden), or press Enter to skip.");
+        const key = (await promptHidden("  Key: ")).trim();
+        if (key) {
+            saveUserConfig({ anthropicApiKey: key });
+            process.env.ANTHROPIC_API_KEY = key;
+            console.log("  ✓ key saved (permissions 600).\n");
+        }
+        else {
+            console.log("  ⚠ skipped — set ANTHROPIC_API_KEY or re-run 'voicelogger config'.\n");
+        }
+        return;
+    }
+    // OpenRouter
+    console.log("Step 3 — OpenRouter API key");
+    console.log("  Free tier available — get a key at: https://openrouter.ai/keys\n");
+    const existing = loadUserConfig().llmApiKey;
+    if (existing) {
+        console.log(`  Saved key: ${maskKey(existing)}`);
+        if (!(await confirm("  Replace it? [y/N] ", false))) {
+            console.log("  ✓ keeping existing key.\n");
+            return;
+        }
+    }
+    console.log("  Paste your key below (input is hidden), or press Enter to skip.");
+    const key = (await promptHidden("  Key: ")).trim();
+    if (key) {
+        saveUserConfig({ llmApiKey: key });
+        console.log("  ✓ key saved (permissions 600).\n");
+    }
+    else {
+        console.log("  ⚠ skipped — set LLM_API_KEY or re-run 'voicelogger config'.\n");
+    }
+}
+/** Step 4 — choose cleanup model. Shows a list scoped to the chosen provider. */
+async function wizardModelStep(provider) {
+    let heading;
+    let options;
+    if (provider === "anthropic") {
+        heading = "Step 4 — Cleanup model";
+        options = [
+            { label: "claude-sonnet-4-6", hint: "balanced — great quality, reasonable cost", value: "claude-sonnet-4-6" },
+            { label: "claude-haiku-4-5", hint: "faster and cheaper, good for quick notes", value: "claude-haiku-4-5" },
+            { label: "claude-opus-4-8", hint: "highest quality, higher cost", value: "claude-opus-4-8" },
+            { label: "type a custom model name", value: "__custom__" },
+        ];
+    }
+    else if (provider === "openrouter") {
+        heading = "Step 4 — Cleanup model (OpenRouter)";
+        options = [
+            { label: "google/gemma-2-27b-it:free", hint: "smart, completely free", value: "google/gemma-2-27b-it:free" },
+            { label: "meta-llama/llama-3.3-70b-instruct:free", hint: "powerful, free", value: "meta-llama/llama-3.3-70b-instruct:free" },
+            { label: "mistralai/mistral-7b-instruct:free", hint: "fast, free", value: "mistralai/mistral-7b-instruct:free" },
+            { label: "type a custom model name", value: "__custom__" },
+        ];
+    }
+    else {
+        heading = "Step 4 — Cleanup model (Ollama)";
+        options = [
+            { label: "llama3.2", hint: "recommended — fast and capable", value: "llama3.2" },
+            { label: "mistral", hint: "solid general-purpose model", value: "mistral" },
+            { label: "gemma2", hint: "Google's open model", value: "gemma2" },
+            { label: "type a custom model name", value: "__custom__" },
+        ];
+    }
+    console.log(heading);
+    console.log();
+    const idx = await promptChoice(options.map(({ label, hint }) => ({ label, hint })), 0);
+    const chosen = options[idx];
+    let modelName;
+    if (chosen.value === "__custom__") {
+        modelName = (await promptLine("  Model name: ")).trim();
+        if (!modelName) {
+            console.log("  ⚠ skipped — keeping current model setting.\n");
+            return;
+        }
+    }
+    else {
+        modelName = chosen.value;
+    }
+    saveUserConfig({ anthropicModel: modelName });
+    console.log(`  ✓ cleanup will use ${modelName}\n`);
 }
 //# sourceMappingURL=config.js.map
