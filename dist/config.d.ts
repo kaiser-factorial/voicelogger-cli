@@ -33,5 +33,9 @@ export interface Config {
     ledgerBin: string;
     /** Whether a tracker CLI is connected (link will notify it). */
     ledgerEnabled: boolean;
+    /** `mem` CLI path. Empty unless connected via VOICELOGGER_MEM_BIN or `config mem`. */
+    memBin: string;
+    /** Whether the Memory Hub is connected (cleaned logs are ingested; context is queried). */
+    memEnabled: boolean;
 }
 export declare const config: Config;

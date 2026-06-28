@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { copyFile, mkdir, writeFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
 import path from "node:path";
 import type { AppEntry } from "./apps.js";
 import type { VoiceLogSession } from "./types.js";
@@ -43,4 +44,33 @@ export async function pushSessionToApp(
   );
 
   return { base, copied };
+}
+
+/**
+ * If the app has a companion CLI (`bin`), notify it about the pushed session by
+ * calling `<bin> note <projectId> <text>`. Matches the Ledger CLI's `note` command
+ * interface. Skipped silently when the app has no bin or the session has no projectId.
+ */
+export async function notifyAppBin(
+  session: VoiceLogSession,
+  app: AppEntry,
+): Promise<{ ok: boolean; skipped: boolean; message: string }> {
+  if (!app.bin || !session.projectId) return { ok: true, skipped: true, message: "" };
+
+  const noteText = session.summary
+    ? `voice log ${session.id}: ${session.summary}`
+    : `voice log ${session.id}`;
+
+  return new Promise((resolve) => {
+    const parts = app.bin!.split(" ");
+    const proc = spawn(parts[0], [...parts.slice(1), "note", session.projectId!, noteText], {
+      env: process.env,
+    });
+    let stderr = "";
+    proc.stderr?.on("data", (d: Buffer) => (stderr += d.toString()));
+    proc.on("error", (e) => resolve({ ok: false, skipped: false, message: e.message }));
+    proc.on("close", (code) =>
+      resolve({ ok: code === 0, skipped: false, message: code !== 0 ? (stderr.trim() || `exit ${code}`) : "" }),
+    );
+  });
 }

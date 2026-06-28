@@ -1,5 +1,5 @@
 import { getApp } from "../apps.js";
-import { pushSessionToApp } from "../appPush.js";
+import { notifyAppBin, pushSessionToApp } from "../appPush.js";
 import { resolveAutoCleanMode } from "../cleanMode.js";
 import { hasAnthropicAuth, runClean } from "../cleanSession.js";
 import { config } from "../config.js";
@@ -127,6 +127,11 @@ async function maybePushToApp(session: VoiceLogSession, args: string[]): Promise
   try {
     const { base, copied } = await pushSessionToApp(session, app);
     console.log(`\n✓ pushed to ${appName} → ${base} (${copied.join(", ") || "index only"} + index)`);
+    const notify = await notifyAppBin(session, app);
+    if (!notify.skipped) {
+      if (notify.ok) console.log(`  ✓ notified ${app.bin} (ledger note added)`);
+      else console.warn(`  ! bin notification failed: ${notify.message} — push still succeeded`);
+    }
   } catch (err) {
     console.warn(`\n⚠ push to '${appName}' failed: ${err instanceof Error ? err.message : err}`);
   }

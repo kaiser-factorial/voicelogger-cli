@@ -18,6 +18,8 @@ export type CleanResult = z.infer<typeof CleanResult>;
 export interface CleanInputs {
     glossary: string;
     template: string;
+    /** Recent notes from the Memory Hub for this project — injected as extra context. */
+    projectContext?: string;
 }
 export declare function cleanTranscript(rawBody: string, inputs: CleanInputs): Promise<CleanResult>;
 export {};

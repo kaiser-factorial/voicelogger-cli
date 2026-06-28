@@ -10,3 +10,13 @@ export declare function pushSessionToApp(session: VoiceLogSession, app: AppEntry
     base: string;
     copied: string[];
 }>;
+/**
+ * If the app has a companion CLI (`bin`), notify it about the pushed session by
+ * calling `<bin> note <projectId> <text>`. Matches the Ledger CLI's `note` command
+ * interface. Skipped silently when the app has no bin or the session has no projectId.
+ */
+export declare function notifyAppBin(session: VoiceLogSession, app: AppEntry): Promise<{
+    ok: boolean;
+    skipped: boolean;
+    message: string;
+}>;

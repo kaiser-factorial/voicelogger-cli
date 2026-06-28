@@ -7,6 +7,9 @@ export interface UserConfig {
     anthropicApiKey?: string;
     /** Path to a project-tracker CLI (e.g. The Ledger) that `link` notifies. Optional. */
     ledgerBin?: string;
+    /** Path to the Unified Memory Hub `mem` CLI. When set, cleaned logs are ingested and
+     *  project context is queried before cleaning. Optional — off by default. */
+    memBin?: string;
     /** Where to save logs. Falls back to the code default. */
     dataDir?: string;
     /** Model name for the `clean` pass. Falls back to the code default. */

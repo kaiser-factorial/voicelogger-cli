@@ -59,6 +59,9 @@ const mic = micDefaults(process.platform);
 // Project-tracker integration is opt-in: off unless LEDGER_BIN is set or a path was
 // saved via `voicelogger config ledger <path>`.
 const ledgerBin = process.env.LEDGER_BIN ?? userCfg.ledgerBin ?? "";
+// Memory Hub integration is opt-in: off unless VOICELOGGER_MEM_BIN is set or a path
+// was saved via `voicelogger config mem <path>`.
+const memBin = process.env.VOICELOGGER_MEM_BIN ?? userCfg.memBin ?? "";
 export const config = {
     dataDir,
     rawDir: path.join(dataDir, "raw"),
@@ -84,5 +87,7 @@ export const config = {
     llmApiKey: process.env.LLM_API_KEY ?? userCfg.llmApiKey ?? "",
     ledgerBin,
     ledgerEnabled: ledgerBin !== "",
+    memBin,
+    memEnabled: memBin !== "",
 };
 //# sourceMappingURL=config.js.map

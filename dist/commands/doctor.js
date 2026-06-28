@@ -20,6 +20,9 @@ function runBinary(bin, args) {
 }
 const firstLine = (s) => s.split("\n")[0]?.trim() ?? "";
 const mb = (bytes) => `${(bytes / 1_000_000).toFixed(0)} MB`;
+const B = process.stdout.isTTY && !process.env.NO_COLOR
+    ? (s) => `\x1b[1m${s}\x1b[0m`
+    : (s) => s;
 export async function doctorCommand() {
     const checks = [];
     const nodeMajor = Number(process.versions.node.split(".")[0]);
@@ -93,10 +96,23 @@ export async function doctorCommand() {
             detail: ld.ran ? config.ledgerBin : `not found: ${config.ledgerBin} — check the path`,
         });
     }
+    // Only shown once the Memory Hub is connected (config mem / VOICELOGGER_MEM_BIN).
+    if (config.memEnabled) {
+        const memParts = config.memBin.split(" ");
+        const mem = await runBinary(memParts[0], [...memParts.slice(1), "--help"]);
+        checks.push({
+            name: "memory hub (context + ingest)",
+            ok: mem.ran,
+            required: false,
+            detail: mem.ran
+                ? `${config.memBin} — context grounded, logs ingested after clean`
+                : `not found: ${config.memBin} — check the path or run: voicelogger config mem off`,
+        });
+    }
     console.log("voicelogger doctor\n");
     for (const c of checks) {
         const mark = c.ok ? "✓" : c.required ? "✗" : "—";
-        console.log(`  ${mark} ${c.name}: ${c.detail}`);
+        console.log(`  ${mark} ${B(c.name)}: ${c.detail}`);
     }
     const code = doctorExitCode(checks);
     const failed = checks.filter((c) => c.required && !c.ok).length;

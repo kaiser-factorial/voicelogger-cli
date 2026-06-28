@@ -3,6 +3,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { config } from "./config.js";
 import { cleanTranscript } from "./cleaner.js";
+import { ingestCleanedLog, queryProjectContext } from "./mem.js";
 import { cleanedBaseName } from "./slug.js";
 import { readRawBody, writeSession } from "./store.js";
 /** Whether credentials are available for the cleaning pass (Anthropic or a configured LLM endpoint). */
@@ -31,11 +32,12 @@ export async function runClean(session) {
     const body = await readRawBody(session);
     if (!body)
         throw new Error("raw transcript is empty — nothing to clean");
-    const [glossary, template] = await Promise.all([
+    const [glossary, template, projectContext] = await Promise.all([
         readFile(config.glossaryPath, "utf8").catch(() => ""),
         readFile(config.templatePath, "utf8").catch(() => ""),
+        queryProjectContext(session),
     ]);
-    const { title, summary, cleaned } = await cleanTranscript(body, { glossary, template });
+    const { title, summary, cleaned } = await cleanTranscript(body, { glossary, template, projectContext });
     await mkdir(config.cleanedDir, { recursive: true });
     // Name the cleaned file from the LLM title + date (e.g. test_with_music_27June2026.md).
     // Keep an already-friendly name on re-clean; but if it's still the legacy timestamp name
@@ -71,6 +73,11 @@ export async function runClean(session) {
     session.status = "cleaned";
     session.summary = summary;
     await writeSession(session);
+    // Seed the Memory Hub flywheel: index this cleaned log so future sessions and
+    // BRICK adjudication have richer context about this project. Fire-and-forget.
+    if (config.memEnabled) {
+        ingestCleanedLog(session, cleanedPath).catch(() => { });
+    }
     return { cleanedPath, summary, markdown };
 }
 //# sourceMappingURL=cleanSession.js.map

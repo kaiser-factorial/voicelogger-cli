@@ -96,8 +96,8 @@ async function cleanWithOpenAICompat(rawBody, inputs) {
         cleaned: parsed.cleaned,
     };
 }
-function buildSystemPrompt({ glossary, template }) {
-    return [
+function buildSystemPrompt({ glossary, template, projectContext }) {
+    const lines = [
         "You clean raw voice-log transcripts.",
         "The input is a rough speech-to-text transcript: it has disfluencies, false starts,",
         "and mis-transcribed technical terms.",
@@ -118,6 +118,10 @@ function buildSystemPrompt({ glossary, template }) {
         "",
         "=== TEMPLATE (structure for the cleaned body) ===",
         template.trim() || "(no template provided — use sensible sections)",
-    ].join("\n");
+    ];
+    if (projectContext?.trim()) {
+        lines.push("", "=== PROJECT CONTEXT (recent notes from the same project — use for domain terms and continuity) ===", projectContext.trim());
+    }
+    return lines.join("\n");
 }
 //# sourceMappingURL=cleaner.js.map

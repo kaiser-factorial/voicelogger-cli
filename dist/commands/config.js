@@ -23,6 +23,8 @@ export async function configCommand(args) {
         return configEndpoint(args.slice(1));
     if (args[0] === "ledger")
         return configLedger(args.slice(1));
+    if (args[0] === "mem")
+        return configMem(args.slice(1));
     return runWizard();
 }
 /** Resolve a user-typed path: expand a leading `~`, then make it absolute. */
@@ -49,6 +51,7 @@ function showConfig() {
     else
         keyLine = "(not set — run: voicelogger config)";
     const tracker = config.ledgerEnabled ? config.ledgerBin : "(not connected)";
+    const memHub = config.memEnabled ? config.memBin : "(not connected)";
     // Render <value>  (from <source>) — same shape as the API key line.
     const sourced = (value, env, savedVal) => {
         if (env)
@@ -64,15 +67,17 @@ function showConfig() {
     const endpointKeyLine = endpointUrl
         ? (config.llmApiKey ? `${maskKey(config.llmApiKey)}` : "(none — local endpoint)")
         : "(n/a)";
-    console.log(`config file:        ${configFilePath()}`);
-    console.log(`anthropic key:      ${keyLine}`);
-    console.log(`LLM endpoint:       ${endpointLine}`);
-    console.log(`endpoint key:       ${endpointKeyLine}`);
-    console.log(`cleanup model:      ${sourced(config.anthropicModel, process.env.LLM_MODEL ?? process.env.CLAUDE_MODEL, saved.anthropicModel)}`);
-    console.log(`logs dir:           ${sourced(config.dataDir, process.env.VOICELOG_DIR, saved.dataDir)}`);
-    console.log(`whisper model file: ${config.modelPath}`);
-    console.log(`auto-clean:         ${config.autoCleanMode}`);
-    console.log(`project tracker:    ${tracker}`);
+    console.log(`${B("config file:")}        ${configFilePath()}`);
+    console.log(`${B("anthropic key:")}      ${keyLine}`);
+    console.log(`${B("LLM endpoint:")}       ${endpointLine}`);
+    if (endpointUrl)
+        console.log(`${B("LLM API key:")}        ${endpointKeyLine}`);
+    console.log(`${B("cleanup model:")}      ${sourced(config.anthropicModel, process.env.LLM_MODEL ?? process.env.CLAUDE_MODEL, saved.anthropicModel)}`);
+    console.log(`${B("logs dir:")}           ${sourced(config.dataDir, process.env.VOICELOG_DIR, saved.dataDir)}`);
+    console.log(`${B("whisper model:")}      ${config.modelPath}`);
+    console.log(`${B("auto-clean:")}         ${config.autoCleanMode}`);
+    console.log(`${B("project tracker:")}    ${tracker}`);
+    console.log(`${B("memory hub:")}         ${memHub}`);
 }
 /** Set (or reset) the model used for cleanup. Works for Anthropic and OpenAI-compat endpoints. */
 function configModel(rest) {
@@ -196,6 +201,36 @@ function configLedger(rest) {
     saveUserConfig({ ledgerBin: stored });
     console.log(`✓ connected project tracker → ${stored}`);
     console.log("  `voicelogger link <session> <project>` will now notify it.");
+}
+/** Connect / disconnect the Unified Memory Hub `mem` CLI. */
+function configMem(rest) {
+    const value = rest[0];
+    if (!value) {
+        const cur = loadUserConfig().memBin;
+        console.log(cur ? `memory hub: ${cur}` : "no memory hub connected.");
+        console.log("usage: voicelogger config mem <path-to-mem-cli> | off");
+        console.log("example: voicelogger config mem node\\ /Users/you/Projects/MEMORY/bin/mem.js");
+        console.log("  When connected, cleaned logs are ingested and project context is");
+        console.log("  queried before each clean pass.");
+        return;
+    }
+    if (value === "off") {
+        saveUserConfig({ memBin: undefined });
+        console.log("✓ disconnected the memory hub.");
+        return;
+    }
+    // Multi-word commands (e.g. "node /path/to/mem.js") are stored as-is.
+    // Single-word absolute/relative paths are resolved to absolute.
+    const isMultiWord = value.includes(" ");
+    const looksLikePath = !isMultiWord && (path.isAbsolute(value) || /[\\/]/.test(value));
+    const stored = looksLikePath ? path.resolve(value) : value;
+    if (looksLikePath && !existsSync(stored)) {
+        console.warn(`note: ${stored} doesn't exist yet — saving anyway.`);
+    }
+    saveUserConfig({ memBin: stored });
+    console.log(`✓ connected memory hub → ${stored}`);
+    console.log("  cleaned logs will be ingested; project context will ground the clean pass.");
+    console.log("  Also set BRICK_MEM_BIN to the same value to ground BRICK MODE adjudication.");
 }
 const B = process.stdout.isTTY && !process.env.NO_COLOR
     ? (s) => `\x1b[1m${s}\x1b[0m`

@@ -64,16 +64,16 @@ function showConfig(): void {
     ? (config.llmApiKey ? `${maskKey(config.llmApiKey)}` : "(none — local endpoint)")
     : "(n/a)";
 
-  console.log(`config file:        ${configFilePath()}`);
-  console.log(`anthropic key:      ${keyLine}`);
-  console.log(`LLM endpoint:       ${endpointLine}`);
-  console.log(`endpoint key:       ${endpointKeyLine}`);
-  console.log(`cleanup model:      ${sourced(config.anthropicModel, process.env.LLM_MODEL ?? process.env.CLAUDE_MODEL, saved.anthropicModel)}`);
-  console.log(`logs dir:           ${sourced(config.dataDir, process.env.VOICELOG_DIR, saved.dataDir)}`);
-  console.log(`whisper model file: ${config.modelPath}`);
-  console.log(`auto-clean:         ${config.autoCleanMode}`);
-  console.log(`project tracker:    ${tracker}`);
-  console.log(`memory hub:         ${memHub}`);
+  console.log(`${B("config file:")}        ${configFilePath()}`);
+  console.log(`${B("anthropic key:")}      ${keyLine}`);
+  console.log(`${B("LLM endpoint:")}       ${endpointLine}`);
+  if (endpointUrl) console.log(`${B("LLM API key:")}        ${endpointKeyLine}`);
+  console.log(`${B("cleanup model:")}      ${sourced(config.anthropicModel, process.env.LLM_MODEL ?? process.env.CLAUDE_MODEL, saved.anthropicModel)}`);
+  console.log(`${B("logs dir:")}           ${sourced(config.dataDir, process.env.VOICELOG_DIR, saved.dataDir)}`);
+  console.log(`${B("whisper model:")}      ${config.modelPath}`);
+  console.log(`${B("auto-clean:")}         ${config.autoCleanMode}`);
+  console.log(`${B("project tracker:")}    ${tracker}`);
+  console.log(`${B("memory hub:")}         ${memHub}`);
 }
 
 /** Set (or reset) the model used for cleanup. Works for Anthropic and OpenAI-compat endpoints. */
@@ -226,8 +226,10 @@ function configMem(rest: string[]): void {
     console.log("✓ disconnected the memory hub.");
     return;
   }
-  // A path gets resolved to absolute; a bare name or "node /path/to/mem.js" is kept as-is.
-  const looksLikePath = path.isAbsolute(value) || /[\\/]/.test(value);
+  // Multi-word commands (e.g. "node /path/to/mem.js") are stored as-is.
+  // Single-word absolute/relative paths are resolved to absolute.
+  const isMultiWord = value.includes(" ");
+  const looksLikePath = !isMultiWord && (path.isAbsolute(value) || /[\\/]/.test(value));
   const stored = looksLikePath ? path.resolve(value) : value;
   if (looksLikePath && !existsSync(stored)) {
     console.warn(`note: ${stored} doesn't exist yet — saving anyway.`);

@@ -2,15 +2,15 @@ import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { getApp, loadApps, removeApp, upsertApp } from "../apps.js";
-import { pushSessionToApp } from "../appPush.js";
+import { notifyAppBin, pushSessionToApp } from "../appPush.js";
 import { resolveSession } from "../store.js";
-import { positionals } from "./util.js";
+import { optValue, positionals } from "./util.js";
 
 const USAGE = `usage:
-  voicelogger app add <name> <path>              register an app + create <path>/voicelogs/
-  voicelogger app list                           list registered apps
-  voicelogger app push <session|latest> <name>   copy a session's logs into the app
-  voicelogger app rm <name>                       unregister an app`;
+  voicelogger app add <name> <path> [--bin <cli>]  register an app + create <path>/voicelogs/
+  voicelogger app list                              list registered apps
+  voicelogger app push <session|latest> <name>      copy a session's logs into the app
+  voicelogger app rm <name>                         unregister an app`;
 
 /**
  * Manage "apps" voicelogger pushes logs into (a first cut of the BRAINSTORM
@@ -37,7 +37,7 @@ export async function appCommand(args: string[]): Promise<void> {
 }
 
 async function addApp(rest: string[]): Promise<void> {
-  const [name, appPath] = positionals(rest);
+  const [name, appPath] = positionals(rest, ["--bin"]);
   if (!name || !appPath) {
     console.error(USAGE);
     process.exit(1);
@@ -47,10 +47,12 @@ async function addApp(rest: string[]): Promise<void> {
     console.error(`path does not exist: ${abs}`);
     process.exit(20);
   }
+  const bin = optValue(rest, "--bin");
   const voicelogs = path.join(abs, "voicelogs");
   await mkdir(voicelogs, { recursive: true });
-  const file = upsertApp(name, { path: abs });
+  const file = upsertApp(name, { path: abs, ...(bin ? { bin } : {}) });
   console.log(`✓ registered app '${name}' → ${abs}`);
+  if (bin) console.log(`  bin: ${bin}`);
   console.log(`  created ${voicelogs}/`);
   console.log(`  saved to ${file}`);
 }
@@ -62,7 +64,11 @@ function listApps(): void {
     console.log("no apps registered — add one with: voicelogger app add <name> <path>");
     return;
   }
-  for (const name of names) console.log(`${name}  →  ${apps[name].path}`);
+  for (const name of names) {
+    const entry = apps[name];
+    const binSuffix = entry.bin ? `  [bin: ${entry.bin}]` : "";
+    console.log(`${name}  →  ${entry.path}${binSuffix}`);
+  }
 }
 
 async function pushApp(rest: string[]): Promise<void> {
@@ -85,6 +91,12 @@ async function pushApp(rest: string[]): Promise<void> {
   const { base, copied } = await pushSessionToApp(session, app);
   console.log(`✓ pushed session ${session.id} → ${base}`);
   console.log(`  copied: ${copied.length ? copied.join(", ") : "(index only)"} + index`);
+
+  const notify = await notifyAppBin(session, app);
+  if (!notify.skipped) {
+    if (notify.ok) console.log(`  ✓ notified ${app.bin} (ledger note added)`);
+    else console.warn(`  ! bin notification failed: ${notify.message} — push still succeeded`);
+  }
 }
 
 async function rmApp(rest: string[]): Promise<void> {

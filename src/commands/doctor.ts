@@ -38,6 +38,9 @@ function runBinary(bin: string, args: string[]): Promise<{ ran: boolean; out: st
 
 const firstLine = (s: string): string => s.split("\n")[0]?.trim() ?? "";
 const mb = (bytes: number): string => `${(bytes / 1_000_000).toFixed(0)} MB`;
+const B = process.stdout.isTTY && !process.env.NO_COLOR
+  ? (s: string) => `\x1b[1m${s}\x1b[0m`
+  : (s: string) => s;
 
 export async function doctorCommand(): Promise<void> {
   const checks: DoctorCheck[] = [];
@@ -139,7 +142,7 @@ export async function doctorCommand(): Promise<void> {
   console.log("voicelogger doctor\n");
   for (const c of checks) {
     const mark = c.ok ? "✓" : c.required ? "✗" : "—";
-    console.log(`  ${mark} ${c.name}: ${c.detail}`);
+    console.log(`  ${mark} ${B(c.name)}: ${c.detail}`);
   }
 
   const code = doctorExitCode(checks);
