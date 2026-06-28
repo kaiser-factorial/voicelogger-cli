@@ -112,8 +112,7 @@ async function runWizard(): Promise<void> {
     process.exit(1);
   }
 
-  console.log("voicelogger setup — two steps, each skippable.");
-  console.log(`(settings saved locally to ${configFilePath()})\n`);
+  console.log(`voicelogger setup: settings saved locally to ${configFilePath()}\n`);
 
   await wizardKeyStep();
   await wizardDirStep();
@@ -123,9 +122,8 @@ async function runWizard(): Promise<void> {
 
 /** Step 1 — Anthropic API key. Explains what it's for, where to get one, and skippable. */
 async function wizardKeyStep(): Promise<void> {
-  console.log("Step 1 of 2 — Anthropic API key");
-  console.log("  Used to LLM-clean your raw transcripts (remove 'um's, fix terms,");
-  console.log("  organize into sections). Without it you'll get the raw transcript only.");
+  console.log("Step 1 of 2 — Anthropic API key\n");
+  console.log("  Used to clean your raw transcripts: no key = raw transcript only.");
   console.log("  Get one at: https://console.anthropic.com/settings/keys\n");
 
   const existing = loadUserConfig().anthropicApiKey;
