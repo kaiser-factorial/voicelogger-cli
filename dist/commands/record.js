@@ -27,10 +27,11 @@ export async function recordCommand(args) {
     });
     // Show session info immediately; "Speak now" prints only after the mic is live
     // (recorder.start() now waits for ffmpeg's first PCM chunk).
-    console.log(`● starting — session ${recorder.session.id}`);
+    console.log(`▶ starting — session ${recorder.session.id}`);
     console.log(`  raw:     ${recorder.session.rawPath}`);
     console.log(`  mic:     ${micLabel(process.platform, config.micFormat, config.micDevice)}`);
     console.log(`  project: ${projectId ?? "(unlinked)"}`);
+    console.log("\n□  wait — mic initializing…");
     await recorder.start();
     console.log("\n● Speak now. Press Enter (or Ctrl-C) to stop.\n");
     let stopped = false;
