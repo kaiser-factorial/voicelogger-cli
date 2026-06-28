@@ -35,6 +35,8 @@ export type CleanResult = z.infer<typeof CleanResult>;
 export interface CleanInputs {
   glossary: string;
   template: string;
+  /** Recent notes from the Memory Hub for this project — injected as extra context. */
+  projectContext?: string;
 }
 
 export async function cleanTranscript(
@@ -129,8 +131,8 @@ async function cleanWithOpenAICompat(rawBody: string, inputs: CleanInputs): Prom
   };
 }
 
-function buildSystemPrompt({ glossary, template }: CleanInputs): string {
-  return [
+function buildSystemPrompt({ glossary, template, projectContext }: CleanInputs): string {
+  const lines = [
     "You clean raw voice-log transcripts.",
     "The input is a rough speech-to-text transcript: it has disfluencies, false starts,",
     "and mis-transcribed technical terms.",
@@ -151,5 +153,15 @@ function buildSystemPrompt({ glossary, template }: CleanInputs): string {
     "",
     "=== TEMPLATE (structure for the cleaned body) ===",
     template.trim() || "(no template provided — use sensible sections)",
-  ].join("\n");
+  ];
+
+  if (projectContext?.trim()) {
+    lines.push(
+      "",
+      "=== PROJECT CONTEXT (recent notes from the same project — use for domain terms and continuity) ===",
+      projectContext.trim(),
+    );
+  }
+
+  return lines.join("\n");
 }

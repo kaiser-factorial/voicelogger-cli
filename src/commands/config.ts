@@ -19,6 +19,7 @@ export async function configCommand(args: string[]): Promise<void> {
   if (args[0] === "model") return configModel(args.slice(1));
   if (args[0] === "endpoint") return configEndpoint(args.slice(1));
   if (args[0] === "ledger") return configLedger(args.slice(1));
+  if (args[0] === "mem") return configMem(args.slice(1));
   return runWizard();
 }
 
@@ -46,6 +47,7 @@ function showConfig(): void {
   else keyLine = "(not set — run: voicelogger config)";
 
   const tracker = config.ledgerEnabled ? config.ledgerBin : "(not connected)";
+  const memHub = config.memEnabled ? config.memBin : "(not connected)";
 
   // Render <value>  (from <source>) — same shape as the API key line.
   const sourced = (value: string, env: string | undefined, savedVal: string | undefined) => {
@@ -71,6 +73,7 @@ function showConfig(): void {
   console.log(`whisper model file: ${config.modelPath}`);
   console.log(`auto-clean:         ${config.autoCleanMode}`);
   console.log(`project tracker:    ${tracker}`);
+  console.log(`memory hub:         ${memHub}`);
 }
 
 /** Set (or reset) the model used for cleanup. Works for Anthropic and OpenAI-compat endpoints. */
@@ -204,6 +207,35 @@ function configLedger(rest: string[]): void {
   saveUserConfig({ ledgerBin: stored });
   console.log(`✓ connected project tracker → ${stored}`);
   console.log("  `voicelogger link <session> <project>` will now notify it.");
+}
+
+/** Connect / disconnect the Unified Memory Hub `mem` CLI. */
+function configMem(rest: string[]): void {
+  const value = rest[0];
+  if (!value) {
+    const cur = loadUserConfig().memBin;
+    console.log(cur ? `memory hub: ${cur}` : "no memory hub connected.");
+    console.log("usage: voicelogger config mem <path-to-mem-cli> | off");
+    console.log("example: voicelogger config mem node\\ /Users/you/Projects/MEMORY/bin/mem.js");
+    console.log("  When connected, cleaned logs are ingested and project context is");
+    console.log("  queried before each clean pass.");
+    return;
+  }
+  if (value === "off") {
+    saveUserConfig({ memBin: undefined });
+    console.log("✓ disconnected the memory hub.");
+    return;
+  }
+  // A path gets resolved to absolute; a bare name or "node /path/to/mem.js" is kept as-is.
+  const looksLikePath = path.isAbsolute(value) || /[\\/]/.test(value);
+  const stored = looksLikePath ? path.resolve(value) : value;
+  if (looksLikePath && !existsSync(stored)) {
+    console.warn(`note: ${stored} doesn't exist yet — saving anyway.`);
+  }
+  saveUserConfig({ memBin: stored });
+  console.log(`✓ connected memory hub → ${stored}`);
+  console.log("  cleaned logs will be ingested; project context will ground the clean pass.");
+  console.log("  Also set BRICK_MEM_BIN to the same value to ground BRICK MODE adjudication.");
 }
 
 type Provider = "anthropic" | "openrouter" | "ollama";

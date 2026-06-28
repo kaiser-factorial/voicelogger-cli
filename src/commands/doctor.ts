@@ -122,6 +122,20 @@ export async function doctorCommand(): Promise<void> {
     });
   }
 
+  // Only shown once the Memory Hub is connected (config mem / VOICELOGGER_MEM_BIN).
+  if (config.memEnabled) {
+    const memParts = config.memBin.split(" ");
+    const mem = await runBinary(memParts[0], [...memParts.slice(1), "--help"]);
+    checks.push({
+      name: "memory hub (context + ingest)",
+      ok: mem.ran,
+      required: false,
+      detail: mem.ran
+        ? `${config.memBin} — context grounded, logs ingested after clean`
+        : `not found: ${config.memBin} — check the path or run: voicelogger config mem off`,
+    });
+  }
+
   console.log("voicelogger doctor\n");
   for (const c of checks) {
     const mark = c.ok ? "✓" : c.required ? "✗" : "—";

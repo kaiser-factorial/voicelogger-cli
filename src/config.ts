@@ -99,6 +99,12 @@ export interface Config {
   ledgerBin: string;
   /** Whether a tracker CLI is connected (link will notify it). */
   ledgerEnabled: boolean;
+
+  // --- Memory Hub integration (optional; the Unified Memory Hub `mem` CLI) ---
+  /** `mem` CLI path. Empty unless connected via VOICELOGGER_MEM_BIN or `config mem`. */
+  memBin: string;
+  /** Whether the Memory Hub is connected (cleaned logs are ingested; context is queried). */
+  memEnabled: boolean;
 }
 
 // Platform-derived ffmpeg mic input (overridable via MIC_FORMAT / MIC_DEVICE).
@@ -107,6 +113,10 @@ const mic = micDefaults(process.platform);
 // Project-tracker integration is opt-in: off unless LEDGER_BIN is set or a path was
 // saved via `voicelogger config ledger <path>`.
 const ledgerBin = process.env.LEDGER_BIN ?? userCfg.ledgerBin ?? "";
+
+// Memory Hub integration is opt-in: off unless VOICELOGGER_MEM_BIN is set or a path
+// was saved via `voicelogger config mem <path>`.
+const memBin = process.env.VOICELOGGER_MEM_BIN ?? userCfg.memBin ?? "";
 
 export const config: Config = {
   dataDir,
@@ -137,4 +147,7 @@ export const config: Config = {
 
   ledgerBin,
   ledgerEnabled: ledgerBin !== "",
+
+  memBin,
+  memEnabled: memBin !== "",
 };
