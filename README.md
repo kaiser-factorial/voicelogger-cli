@@ -1,238 +1,268 @@
 # voicelogger-cli
 
-`voicelogger` — a local, offline voice-logger CLI. Record from your mic, transcribe
-with **whisper.cpp**, optionally LLM-**clean** the transcript, and **link** the result
-to a project tracker (e.g. [The Ledger](https://github.com/kaiser-factorial)).
+Record from your mic, get a clean note back.
 
-Everything runs locally; nothing is uploaded except the optional `clean` pass (which
-calls the Anthropic API). Transcripts are written as plain Markdown so agents/tools can
-read them directly.
+`voicelogger` transcribes locally with **whisper.cpp** and (optionally) cleans the result
+with an LLM — removing disfluencies, fixing domain terms, organizing the content. The raw
+transcript is always saved; nothing is uploaded except the optional cleanup pass.
 
 ```
-mic ──▶ energy VAD ──▶ whisper.cpp ──▶ raw/<id>.md  ──(clean)──▶ cleaned/<friendly-name>.md
-                                       sessions/<id>.json (index)   │
-                                                                    └─(link)─▶ project (+ optional tracker)
+mic ──▶ whisper.cpp ──▶ raw/<id>.md ──(clean)──▶ cleaned/<friendly-name>.md
 ```
 
-## Install
+---
 
-**As a CLI** (the `voicelogger` command):
+## Getting started
+
+Follow these steps once, then you're set.
+
+### 1. Install voicelogger
+
+You'll need **Node 20+** — check with `node --version`, or grab it at [nodejs.org](https://nodejs.org).
 
 ```bash
-# from GitHub (builds on install — no npm publish needed)
-npm install -g github:kaiser-factorial/voicelogger-cli
-
-# or once published to npm
-npm install -g voicelogger-cli
-npx voicelogger-cli --help
+git clone https://github.com/kaiser-factorial/voicelogger-cli.git ~/voicelogger-cli
+cd ~/voicelogger-cli
+npm install --omit=dev
+npm link
 ```
 
-**From source** (for development):
+This puts the `voicelogger` command on your PATH.
+
+### 2. Install ffmpeg and whisper.cpp
+
+**macOS (Homebrew):**
 
 ```bash
-git clone git@github.com:kaiser-factorial/voicelogger-cli.git
-cd voicelogger-cli
-npm install
-npm run voicelogger -- --help     # run via tsx, or `npm run build` then `node dist/cli.js`
+brew install ffmpeg whisper-cpp
 ```
 
-## Prerequisites
+`ffmpeg` captures the mic; `whisper-cpp` runs transcription locally on your machine.
 
-- **Node 20+**
-- **ffmpeg** — `brew install ffmpeg` (mic capture via avfoundation, macOS)
-- **whisper.cpp** — `brew install whisper-cpp` (provides `whisper-cli`)
-- **A model** — `voicelogger download-model` (≈141 MB → `~/.voicelogger/models/ggml-base.en.bin`)
+> Linux / Windows: mic capture is experimental — see [docs/CROSS_PLATFORM.md](docs/CROSS_PLATFORM.md).
 
-> Mic capture is **verified on macOS** (`ffmpeg -f avfoundation`). Linux (`alsa`/`pulse`)
-> and Windows (`dshow`) are **experimental** — the structure is in place and overridable via
-> `MIC_FORMAT` / `MIC_DEVICE`; see [docs/CROSS_PLATFORM.md](docs/CROSS_PLATFORM.md). The rest
-> of the pipeline is platform-agnostic.
+### 3. Download the Whisper model
+
+```bash
+voicelogger download-model
+```
+
+Fetches the `base.en` model (~141 MB) to `~/.voicelogger/models/`. One-time, takes about
+30 seconds.
+
+### 4. Set your Anthropic API key *(optional — for LLM cleanup)*
+
+```bash
+voicelogger config
+```
+
+The wizard asks for your [Anthropic API key](https://console.anthropic.com/settings/keys).
+It's entered hidden and stored at `~/.voicelogger/config.json` with owner-only permissions.
+
+Skip this if you only want raw transcripts — voicelogger works fine without a key, it just
+won't auto-clean.
+
+### 5. Check everything is ready
+
+```bash
+voicelogger doctor
+```
+
+All green? You're good to go. If anything is missing it tells you exactly what to install.
+
+### 6. Record something
+
+```bash
+voicelogger record
+```
+
+You'll see:
+
+```
+▶ starting — session 20260627-143201
+  raw:     ~/voicelogger/raw/20260627-143201.md
+  mic:     macOS default
+  project: (unlinked)
+
+□  wait — mic initializing…
+
+● Speak now. Press Enter (or Ctrl-C) to stop.
+```
+
+Speak until you're done, then press **Enter**. The transcript is cleaned and printed right
+in the terminal. Your logs live in `~/voicelogger/` by default.
+
+> **macOS:** you'll see a mic-permission prompt the first time. Allow it.
+
+---
 
 ## Usage
 
 ```bash
-voicelogger record                       # record, then auto-clean + show the edited markdown
-voicelogger record --project rrg         # tag the session with a project id
-voicelogger record --no-clean            # keep raw only; skip the cleanup pass
-voicelogger record --clean prompt        # ask before cleaning this recording
-voicelogger doctor                       # check ffmpeg / whisper / model / API key
+voicelogger                              # show this menu
+voicelogger doctor                       # check all dependencies + config
+
+# Recording
+voicelogger record                       # record → auto-clean → print
+voicelogger record --no-clean            # keep raw only
+voicelogger record --clean prompt        # ask before cleaning
+voicelogger record --project myproject   # tag the session with a project id
+voicelogger record --app myapp           # record + copy into a registered app dir
+
+# Browsing
 voicelogger list                         # all sessions, newest first
-voicelogger list --json                  # machine-readable session list
-voicelogger show latest                  # print the latest transcript (cleaned if present)
-voicelogger show latest --raw            # force the raw transcript
+voicelogger list --json                  # machine-readable
+voicelogger show latest                  # print the latest (cleaned if present)
+voicelogger show latest --raw            # force raw transcript
+voicelogger show latest --plain          # no ANSI styling
+
+# Cleaning
 voicelogger clean latest                 # LLM-clean the latest raw transcript
-voicelogger link latest rrg              # tag the latest recording with project "rrg"
-voicelogger app add rrg ~/Projects/rrg   # register an app + create its voicelogs/ dir
-voicelogger app push latest rrg          # copy the session's logs into that app
+
+# Organizing
+voicelogger link latest myproject        # tag latest with a project id
+voicelogger app add myapp ~/Projects/myapp   # register a project dir
+voicelogger app push latest myapp            # copy session into that dir's voicelogs/
+voicelogger app list / app rm myapp
+
+# Setup
+voicelogger config                       # run the setup wizard (key + logs dir)
+voicelogger config show                  # print current config (key masked)
+voicelogger config model <name>          # set the cleanup model
+voicelogger config dir <path>            # set where logs save ('default' to reset)
 voicelogger download-model               # fetch the Whisper model
 voicelogger version
 ```
 
 A `<session>` argument can be a full id, a unique id prefix, or `latest`.
 
-macOS prompts once for microphone permission for the terminal running `record`. The
-live transcript prints as each utterance is recognized; files land under your logs
-directory (default `~/voicelogger/` for a fresh install — change it via the `config`
-wizard, `voicelogger config dir <path>`, or `VOICELOG_DIR`).
+---
 
-## Cleanup — the edited markdown
+## Cleanup — the edited note
 
-Every session keeps two files: `raw/<id>.md` (the untouched transcript, never overwritten)
-and a cleaned, LLM-edited pass that removes disfluencies, fixes domain terms via the shared
-glossary, and organizes the content into the template. When a recording finishes,
-`voicelogger` runs the cleanup and prints the edited markdown **styled inline** in the terminal.
+After each recording, voicelogger runs the transcript through an LLM to produce a
+**cleaned note** — disfluencies removed, domain terms corrected via the shared glossary,
+content organized per template. Both files are always kept:
 
-The cleaned file gets a **human-friendly name** the model picks from the content, plus the
-date — e.g. `cleaned/test_with_music_27June2026.md` (the raw transcript and the session id
-keep the sortable timestamp). Re-cleaning a session keeps its name; same-day collisions get
-a `-2`, `-3` suffix.
+- `raw/<id>.md` — the untouched transcript, never overwritten
+- `cleaned/<friendly-name>_<date>.md` — the edited version (e.g. `planning_call_27June2026.md`)
 
-The cleanup pass needs an Anthropic API key. Save it once with the wizard (it's entered
-hidden and stored at `~/.voicelogger/config.json` with `600` perms):
+The cleaned file is printed styled in the terminal right when the recording finishes.
 
-```bash
-voicelogger config        # prompts for your key without echoing it; saved per-machine
-voicelogger config show   # show config (key masked) — handy to confirm it's set
-```
-
-Or set `ANTHROPIC_API_KEY` (or `ANTHROPIC_AUTH_TOKEN`) in your environment — an env var
-always overrides the saved key. Without any key, `record` keeps the raw transcript and
-points you to run `voicelogger clean` later.
-
-Control when it runs:
+**Control when cleanup runs:**
 
 | | |
 |---|---|
-| `VOICELOGGER_AUTOCLEAN=auto` | clean automatically on finish (**default**) |
-| `VOICELOGGER_AUTOCLEAN=prompt` | ask `Clean this recording now? [Y/n]` each time |
-| `VOICELOGGER_AUTOCLEAN=off` | keep raw only; clean manually with `voicelogger clean <id>` |
+| Default (`auto`) | cleans automatically on finish |
+| `voicelogger record --clean prompt` | asks `Clean this recording now? [Y/n]` each time |
+| `voicelogger record --no-clean` | skips cleanup; raw only |
+| `VOICELOGGER_AUTOCLEAN=off` | skip by default (override per-recording with `--clean`) |
 
-Per-recording overrides: `record --no-clean`, `record --clean`, `record --clean prompt`.
-`voicelogger show <id>` renders the cleaned version styled (raw is shown verbatim); add
-`--plain` for unstyled markdown.
+No API key? voicelogger keeps the raw transcript and tells you how to clean it later.
 
-## Link a session to a project
-
-`voicelogger link <session> <projectId>` tags a recording with a project (stored in the
-session index). That's all it does by default.
-
-### Optional: connect a project tracker
-
-If you use a project-tracker CLI (e.g. [The Ledger](https://github.com/kaiser-factorial)),
-connect it once and `link` will also notify it — a note, and a `touch` with `--touch`:
+**Change the cleanup model:**
 
 ```bash
-voicelogger config ledger /path/to/ledger      # connect (saved per-machine)
-voicelogger link latest rrg --touch --reason "voice debug session"
-voicelogger config ledger off                  # disconnect
+voicelogger config model claude-haiku-4-5    # faster and cheaper
+voicelogger config model default             # reset to claude-sonnet-4-6
 ```
 
-You can also set `LEDGER_BIN` in the environment instead of saving it. Until a tracker is
-connected, `link` stays purely local and never mentions one. If the tracker call fails, the
-**local link is still saved** — `voicelogger` never loses your data over a bridge failure.
+---
 
-## Push logs into other apps
+## Customize your logs directory
 
-Register a project directory as an "app", then copy a session's logs into it — so each
-app owns a self-contained `voicelogs/` of the recordings relevant to it:
+By default logs go to `~/voicelogger/`. Change it:
 
 ```bash
-voicelogger app add rrg ~/Projects/rrg   # registers rrg + creates ~/Projects/rrg/voicelogs/
-voicelogger app list
-voicelogger app push latest rrg          # copies raw + cleaned + index into rrg/voicelogs/
-voicelogger app rm rrg
+voicelogger config dir ~/Documents/voice-notes
+voicelogger config dir default    # reset
 ```
 
-Or push automatically as you record: `voicelogger record --app rrg` records, cleans, then
-copies the finished session into `rrg/voicelogs/`.
+Or set `VOICELOG_DIR` in your environment.
 
-`push` copies (doesn't symlink) the raw transcript, the cleaned markdown, and the session
-index, rewriting the index paths to the app-local copies. The registry lives at
-`~/.voicelogger/apps.json`. See [BRAINSTORM.md](BRAINSTORM.md) for where this is headed
-(a per-app `voicelogger --app <name>` selector, per-app glossaries).
+---
 
-## Use as a library in another project
+## Push logs into project folders
 
-The package also ships a typed library entry, so you can embed the pipeline instead of
-shelling out:
+Register a project directory once; then `record --app` automatically copies the
+finished session into it:
 
-```ts
-import { SessionRecorder, LaptopMicSource, cleanTranscript } from "voicelogger-cli";
-
-const rec = new SessionRecorder(new LaptopMicSource(), {
-  projectId: "rrg",
-  onSegment: (s) => console.log(s.text),
-});
-await rec.start();
-// … later …
-const session = await rec.stop();
+```bash
+voicelogger app add myapp ~/Projects/myapp   # creates ~/Projects/myapp/voicelogs/
+voicelogger record --app myapp               # record → clean → copy into myapp/voicelogs/
+voicelogger app push latest myapp            # or push an existing session manually
 ```
 
-## Configuration (all optional, via env vars)
+Each app gets a self-contained `voicelogs/` with the raw transcript, cleaned note, and
+session index — fully portable, no symlinks.
 
-| Var | Default | Purpose |
-|-----|---------|---------|
-| `VOICELOG_DIR` | `~/Projects/voice_logs` | where `raw/`, `cleaned/`, `sessions/` live |
-| `VOICELOGGER_HOME` | `~/.voicelogger` | per-user home for the model and other assets |
-| `WHISPER_MODEL` | `~/.voicelogger/models/ggml-base.en.bin` | ggml model path (in-tree `models/` wins if present) |
-| `WHISPER_MODEL_URL` | HF `ggml-base.en.bin` | source for `download-model` |
+---
+
+## Configuration reference
+
+All settings are optional; the defaults work out of the box on macOS.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | — | required for the cleanup pass |
+| `VOICELOG_DIR` | `~/voicelogger` | where `raw/`, `cleaned/`, `sessions/` live |
+| `VOICELOGGER_HOME` | `~/.voicelogger` | per-user home for the model + config |
+| `VOICELOGGER_AUTOCLEAN` | `auto` | `auto` \| `prompt` \| `off` |
+| `CLAUDE_MODEL` | `claude-sonnet-4-6` | Anthropic model for cleanup |
+| `WHISPER_MODEL` | `~/.voicelogger/models/ggml-base.en.bin` | model path |
 | `WHISPER_BIN` | `whisper-cli` | whisper.cpp binary |
-| `WHISPER_THREADS` | `4` | whisper threads |
+| `WHISPER_THREADS` | `4` | threads for transcription |
 | `FFMPEG_BIN` | `ffmpeg` | ffmpeg binary |
-| `MIC_FORMAT` | per-OS (`avfoundation`/`alsa`/`dshow`) | ffmpeg input format (`-f`) — see [cross-platform notes](docs/CROSS_PLATFORM.md) |
-| `MIC_DEVICE` | per-OS (`:0` on macOS) | ffmpeg input device (`-i`); on Windows set `audio=<name>` |
-| `VOICELOGGER_AUTOCLEAN` | `auto` | cleanup on `record` finish: `auto` \| `prompt` \| `off` |
-| `CLAUDE_MODEL` | `claude-opus-4-8` | Anthropic model for `clean` (e.g. `claude-haiku-4-5` for speed/cost) |
-| `CLEAN_MAX_TOKENS` | `16000` | max output tokens for `clean` |
-| `GLOSSARY_PATH` / `TEMPLATE_PATH` | bundled `cleaning/*` | cleaning glossary + template |
-| `LEDGER_BIN` | — (off) | optional project-tracker CLI for `link` (or run `config ledger <path>`) |
-| `ANTHROPIC_API_KEY` | — | required by `clean` |
+| `MIC_FORMAT` | `avfoundation` (macOS) | ffmpeg input format — see [cross-platform notes](docs/CROSS_PLATFORM.md) |
+| `MIC_DEVICE` | `:0` (macOS) | ffmpeg input device |
+| `LEDGER_BIN` | — (off) | optional project-tracker CLI for `link` |
 
-## Architecture
+---
 
-```
-src/
-  cli.ts                   command dispatch + version/help
-  index.ts                 public library surface
-  config.ts                paths + binaries (env-overridable)
-  types.ts                 VoiceLogSession, TranscriptSegment
-  sources/VoiceSource.ts   the capture-source abstraction
-  sources/LaptopMicSource.ts   ffmpeg avfoundation → 16 kHz mono PCM
-  sources/FileSource.ts        deterministic WAV source (tests)
-  wav.ts                   PCM → WAV header
-  vad.ts                   energy VAD / windowing
-  transcriber.ts           whisper-cli on one window → text
-  session.ts               orchestration → raw + index files
-  cleaner.ts               LLM cleaning pass (Anthropic)
-  cleanSession.ts          runClean: raw → cleaned/<id>.md + index update
-  cleanMode.ts             auto/prompt/off resolution (env + flags)
-  markdown.ts              styled-terminal markdown renderer
-  store.ts                 list/resolve/read sessions on disk
-  userConfig.ts            per-machine config (~/.voicelogger/config.json, API key)
-  apps.ts                  app registry (~/.voicelogger/apps.json) for `app push`
-  ledger.ts                bridge to an optional project-tracker CLI (e.g. ledger)
-  commands/                record · clean · list · show · link · config · app · doctor · download-model
+## For developers
+
+**From source:**
+
+```bash
+git clone https://github.com/kaiser-factorial/voicelogger-cli.git
+cd voicelogger-cli
+npm install
+npm run dev -- record          # run via tsx (no build step)
+npm run build                  # compile to dist/
+npm test                       # run unit tests
 ```
 
-Everything downstream of `VoiceSource` is source-agnostic, so a network/device source
-(e.g. a wearable streaming PCM) can wire in later without touching VAD, transcription,
-storage, or linking.
-
-## Test (no mic, deterministic)
+**Run the smoke test** (no mic required):
 
 ```bash
 say -o /tmp/vl_test.aiff "the voicelogger pipeline is now working end to end"
 ffmpeg -y -i /tmp/vl_test.aiff -ac 1 -ar 16000 -f wav /tmp/vl_test.wav
-npm run smoke -- /tmp/vl_test.wav     # asserts a non-empty transcript + raw status
+npm run smoke -- /tmp/vl_test.wav
 ```
 
-`FileSource` (a WAV-file `VoiceSource`) drives `SessionRecorder` exactly like the mic
-would, into a throwaway temp dir.
+**Architecture:**
 
-## Roadmap
+```
+src/
+  cli.ts              command dispatch + help
+  config.ts           paths, binaries, env-overridable settings
+  session.ts          orchestration → raw/<id>.md + sessions/<id>.json
+  vad.ts              energy VAD with pre-roll (captures soft leading edges)
+  transcriber.ts      whisper-cli wrapper
+  cleaner.ts          Anthropic SDK cleanup pass
+  cleanSession.ts     runClean: raw → cleaned/<name>.md + index update
+  markdown.ts         styled-terminal markdown renderer
+  store.ts            list / resolve / read sessions on disk
+  userConfig.ts       ~/.voicelogger/config.json (API key, dirs, model)
+  apps.ts             ~/.voicelogger/apps.json (registered project dirs)
+  sources/            VoiceSource abstraction, LaptopMicSource, FileSource
+  commands/           record · clean · list · show · link · config · app · doctor · download-model
+```
 
-See [BRAINSTORM.md](BRAINSTORM.md) — notably a `--app <name>` flag to register multiple
-project targets and auto-push saved logs into each app's own `voicelogs/` directory.
+Everything downstream of `VoiceSource` is source-agnostic — a network or wearable PCM
+source can be added without touching VAD, transcription, storage, or linking.
+
+---
 
 ## License
 
