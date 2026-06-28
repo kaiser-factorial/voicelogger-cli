@@ -52,3 +52,20 @@ export function ledgerNote(projectId: string, note: string): Promise<LedgerResul
 export function ledgerTouch(projectId: string, reason: string): Promise<LedgerResult> {
   return runLedger(["touch", projectId, "--reason", reason, "--json"]);
 }
+
+export interface LedgerProject {
+  id: string;
+  name: string;
+}
+
+/** Fetch active projects from `ledger status --json`. Returns [] on any failure. */
+export async function ledgerListProjects(): Promise<LedgerProject[]> {
+  const result = await runLedger(["status", "--json"]);
+  if (!result.ok) return [];
+  try {
+    const parsed: unknown = JSON.parse(result.stdout);
+    return Array.isArray(parsed) ? (parsed as LedgerProject[]) : [];
+  } catch {
+    return [];
+  }
+}

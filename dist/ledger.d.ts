@@ -15,3 +15,9 @@ export interface LedgerResult {
 export declare function exitLabel(code: number): string;
 export declare function ledgerNote(projectId: string, note: string): Promise<LedgerResult>;
 export declare function ledgerTouch(projectId: string, reason: string): Promise<LedgerResult>;
+export interface LedgerProject {
+    id: string;
+    name: string;
+}
+/** Fetch active projects from `ledger status --json`. Returns [] on any failure. */
+export declare function ledgerListProjects(): Promise<LedgerProject[]>;

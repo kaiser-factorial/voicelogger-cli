@@ -30,4 +30,17 @@ export function ledgerNote(projectId, note) {
 export function ledgerTouch(projectId, reason) {
     return runLedger(["touch", projectId, "--reason", reason, "--json"]);
 }
+/** Fetch active projects from `ledger status --json`. Returns [] on any failure. */
+export async function ledgerListProjects() {
+    const result = await runLedger(["status", "--json"]);
+    if (!result.ok)
+        return [];
+    try {
+        const parsed = JSON.parse(result.stdout);
+        return Array.isArray(parsed) ? parsed : [];
+    }
+    catch {
+        return [];
+    }
+}
 //# sourceMappingURL=ledger.js.map

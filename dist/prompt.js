@@ -45,6 +45,30 @@ export async function promptChoice(options, defaultIndex = 0) {
         console.log(`  Please enter a number between 1 and ${options.length}.`);
     }
 }
+/**
+ * Show a numbered list of Ledger projects and return the chosen project ID,
+ * or undefined if the user presses Enter to skip.
+ * Returns undefined immediately in non-interactive environments.
+ */
+export async function promptProject(projects) {
+    if (!process.stdin.isTTY || projects.length === 0)
+        return undefined;
+    console.log("\nLink this session to a project? (Enter to skip)\n");
+    const width = String(projects.length).length;
+    projects.forEach(({ id, name }, i) => {
+        console.log(`  ${String(i + 1).padStart(width)}) ${name}  — ${id}`);
+    });
+    console.log();
+    while (true) {
+        const raw = (await promptLine("  > ")).trim();
+        if (!raw)
+            return undefined;
+        const n = Number.parseInt(raw, 10);
+        if (n >= 1 && n <= projects.length)
+            return projects[n - 1].id;
+        console.log(`  Enter a number 1–${projects.length}, or press Enter to skip.`);
+    }
+}
 /** Read a line from a TTY without echoing what is typed (password-style). */
 export function promptHidden(prompt) {
     return new Promise((resolve) => {

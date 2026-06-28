@@ -3,13 +3,14 @@ import { notifyAppBin, pushSessionToApp } from "../appPush.js";
 import { resolveAutoCleanMode } from "../cleanMode.js";
 import { hasAnthropicAuth, runClean } from "../cleanSession.js";
 import { config } from "../config.js";
+import { exitLabel, ledgerListProjects, ledgerNote } from "../ledger.js";
 import { renderMarkdown } from "../markdown.js";
 import { micLabel } from "../platform.js";
-import { confirm } from "../prompt.js";
+import { confirm, promptProject } from "../prompt.js";
 import { SessionRecorder } from "../session.js";
 import { setupApiKey } from "../setupKey.js";
 import { LaptopMicSource } from "../sources/LaptopMicSource.js";
-import { readRawBody } from "../store.js";
+import { readRawBody, writeSession } from "../store.js";
 import { optValue } from "./util.js";
 /**
  * Record from the laptop mic until Enter/Ctrl-C. Writes raw/<id>.md and the
@@ -48,6 +49,7 @@ export async function recordCommand(args) {
             console.log(`  raw:   ${session.rawPath}`);
             console.log(`  index: ${config.sessionsDir}/${session.id}.json`);
             await maybeAutoClean(session, args);
+            await maybePromptProject(session);
             await maybePushToApp(session, args);
             process.exit(0);
         }
@@ -102,6 +104,36 @@ async function maybeAutoClean(session, args) {
         console.warn(`\n⚠ cleanup failed: ${err instanceof Error ? err.message : err}`);
         console.warn(`  the raw transcript is safe — retry with: voicelogger clean ${session.id}`);
     }
+}
+/**
+ * After cleaning, if the session isn't linked to a project yet and ledger is
+ * connected, show a numbered list of active projects and let the user pick one
+ * (or press Enter to leave it unlinked). Saves the projectId and drops a ledger note.
+ */
+async function maybePromptProject(session) {
+    if (session.projectId)
+        return; // already set via --project
+    if (!config.ledgerEnabled)
+        return; // no tracker connected
+    if (!process.stdin.isTTY)
+        return; // non-interactive
+    const projects = await ledgerListProjects();
+    if (!projects.length)
+        return;
+    const chosen = await promptProject(projects);
+    if (!chosen)
+        return;
+    session.projectId = chosen;
+    await writeSession(session);
+    console.log(`✓ linked → ${chosen}`);
+    const note = session.summary
+        ? `voice log ${session.id}: ${session.summary}`
+        : `voice log ${session.id}`;
+    const res = await ledgerNote(chosen, note);
+    if (res.ok)
+        console.log(`✓ ledger note added to ${chosen}`);
+    else
+        console.warn(`! ledger note failed (${exitLabel(res.code)}): ${res.stderr.trim() || "check ledger-cli auth"}`);
 }
 /** If `--app <name>` was given, copy the finished session into that app's voicelogs/. */
 async function maybePushToApp(session, args) {
