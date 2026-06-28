@@ -22,6 +22,12 @@ export interface VadOptions {
   minUtteranceMs?: number;
   /** RMS threshold in normalized [0,1] amplitude. */
   energyThreshold?: number;
+  /**
+   * Pre-roll: how much audio just *before* the energy threshold trips to include in the
+   * utterance. Without this, the soft leading edge of a word (e.g. the "w" in "one")
+   * drops below threshold and gets truncated. Default 300 ms. Set to 0 to disable.
+   */
+  preRollMs?: number;
 }
 
 export interface VadWindow {
@@ -40,9 +46,12 @@ export class EnergyVad {
   private readonly maxUtteranceMs: number;
   private readonly minUtteranceMs: number;
   private readonly energyThreshold: number;
+  private readonly preRollMaxFrames: number;
 
   private leftover: Buffer = Buffer.alloc(0);
   private utterance: Buffer[] = [];
+  /** Recent silent/quiet frames kept so a triggering utterance gets a leading-edge buffer. */
+  private preRollFrames: Buffer[] = [];
   private inSpeech = false;
   private trailingSilenceMs = 0;
   private utteranceMs = 0;
@@ -57,6 +66,7 @@ export class EnergyVad {
     this.maxUtteranceMs = opts.maxUtteranceMs ?? 15000;
     this.minUtteranceMs = opts.minUtteranceMs ?? 350;
     this.energyThreshold = opts.energyThreshold ?? 0.012;
+    this.preRollMaxFrames = Math.max(0, Math.ceil((opts.preRollMs ?? 300) / this.frameMs));
     // 16-bit mono → 2 bytes/sample.
     this.frameBytes = Math.floor((this.sampleRate * this.frameMs) / 1000) * 2;
     if (this.frameBytes < 2) {
@@ -83,7 +93,14 @@ export class EnergyVad {
       if (speech) {
         if (!this.inSpeech) {
           this.inSpeech = true;
-          this.utteranceStartMs = this.streamMs - this.frameMs;
+          // Include the pre-roll frames so the leading edge isn't truncated.
+          const preRollMs = this.preRollFrames.length * this.frameMs;
+          this.utteranceStartMs = this.streamMs - this.frameMs - preRollMs;
+          for (const pr of this.preRollFrames) {
+            this.utterance.push(pr);
+            this.utteranceMs += this.frameMs;
+          }
+          this.preRollFrames = [];
         }
         this.utterance.push(Buffer.from(frame));
         this.utteranceMs += this.frameMs;
@@ -97,6 +114,10 @@ export class EnergyVad {
           const w = this.closeUtterance();
           if (w) windows.push(w);
         }
+      } else if (this.preRollMaxFrames > 0) {
+        // Outside speech: keep the most recent N frames so the next utterance can use them.
+        this.preRollFrames.push(Buffer.from(frame));
+        if (this.preRollFrames.length > this.preRollMaxFrames) this.preRollFrames.shift();
       }
 
       if (this.inSpeech && this.utteranceMs >= this.maxUtteranceMs) {

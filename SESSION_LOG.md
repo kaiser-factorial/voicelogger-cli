@@ -165,6 +165,27 @@ Tests: dataDir round-trip + clear (userConfig.test.ts); saved-dataDir flows thro
 config and the derived raw/cleaned/sessions paths (new dataDirConfig.test.ts). 66 total.
 Verified live: set/show/reset/env-wins, Corina's real config untouched (still `(default)`).
 
+### 11. Recording-start latency fix + friendlier default for new users (user request, 2026-06-27) — DONE
+User: "1234567" at start is often picked up as "34567" — first digits eaten. Two causes:
+1. `LaptopMicSource.start()` returned immediately after spawning ffmpeg; avfoundation startup
+   takes hundreds of ms, so "Speak now" printed before the mic was actually capturing.
+2. EnergyVad has no pre-roll: the soft leading edge of a word ("w" in "one") is below
+   threshold, so the VAD discards it and only buffers from when energy crosses.
+
+Fixes:
+- `LaptopMicSource.start()`: wait for ffmpeg's first PCM chunk before resolving (and reject
+  if ffmpeg exits before producing audio).
+- `EnergyVad`: pre-roll ring of recent frames (default 300 ms, set `preRollMs:0` to disable).
+  When speech triggers, prepend the ring to the utterance and clear it. `utteranceStartMs`
+  shifts back accordingly. 3 new tests; all old tests still pass (empty pre-roll = no effect).
+- `record.ts`: print session info immediately; "Speak now" only after `start()` resolves so
+  it accurately means "the mic is live now."
+
+Also (user's second message): friendlier default logs dir for new users. `config.ts` auto
+default now: `existsSync(~/Projects/voice_logs)` → use legacy (existing users untouched);
+else use `~/voicelogger` (clean, discoverable). Verified Corina's config still resolves to
+the legacy path; a fresh home gets `~/voicelogger`. 69 tests, smoke green.
+
 ## Status / what's committed
 6 autonomous commits this session: `doctor`, `list --json`, `app` (+ the 3 prior feature
 commits). All local on `main`, ahead of `origin/main`. typecheck + build + 49 tests + the

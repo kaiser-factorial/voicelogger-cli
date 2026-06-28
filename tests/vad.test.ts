@@ -70,6 +70,37 @@ test("a too-long utterance is force-cut at maxUtteranceMs", () => {
   assert.equal(windows[0].pcm.length, 20 * FRAME_BYTES);
 });
 
+test("pre-roll captures the lead-in audio that's below threshold", () => {
+  // 5 frames of pre-roll (150 ms at 30 ms/frame). 5 quiet frames before speech should
+  // be carried into the utterance — this is what fixes the missed "1, 2, 3..." start.
+  const vad = new EnergyVad({ sampleRate: SR, preRollMs: 150 });
+  const windows = vad.feed(
+    Buffer.concat([frames(5, QUIET), frames(20, SPEECH), frames(24, SILENCE)]),
+  );
+  assert.equal(windows.length, 1);
+  assert.equal(windows[0].pcm.length, (5 + 20 + 24) * FRAME_BYTES);
+  assert.equal(windows[0].startMs, 0); // utterance starts where the quiet pre-roll began
+});
+
+test("pre-roll keeps only the most recent N frames before speech", () => {
+  const vad = new EnergyVad({ sampleRate: SR, preRollMs: 150 }); // 5 frames
+  const windows = vad.feed(
+    Buffer.concat([frames(20, QUIET), frames(20, SPEECH), frames(24, SILENCE)]),
+  );
+  assert.equal(windows.length, 1);
+  // 20 quiet frames feed in but only 5 fit in the ring buffer at speech-trigger time.
+  assert.equal(windows[0].pcm.length, (5 + 20 + 24) * FRAME_BYTES);
+});
+
+test("preRollMs:0 disables pre-roll (legacy behavior)", () => {
+  const vad = new EnergyVad({ sampleRate: SR, preRollMs: 0 });
+  const windows = vad.feed(
+    Buffer.concat([frames(5, QUIET), frames(20, SPEECH), frames(24, SILENCE)]),
+  );
+  assert.equal(windows.length, 1);
+  assert.equal(windows[0].pcm.length, (20 + 24) * FRAME_BYTES); // no pre-roll
+});
+
 test("leftover bytes carry across feed() calls (chunk boundaries are arbitrary)", () => {
   const seq = Buffer.concat([frames(20, SPEECH), frames(24, SILENCE)]);
 

@@ -74,6 +74,22 @@ export class LaptopMicSource implements VoiceSource {
     proc.on("close", () => {
       for (const h of this.endHandlers) h();
     });
+
+    // Don't resolve until ffmpeg is actually producing audio. avfoundation startup
+    // is hundreds of ms — without this wait, "Speak now" prints before the mic is
+    // capturing and the first word gets eaten.
+    await new Promise<void>((resolve, reject) => {
+      const onData = () => {
+        proc.removeListener("exit", onExit);
+        resolve();
+      };
+      const onExit = (code: number | null) => {
+        proc.stdout.removeListener("data", onData);
+        reject(new Error(`ffmpeg exited with code ${code} before producing audio`));
+      };
+      proc.stdout.once("data", onData);
+      proc.once("exit", onExit);
+    });
   }
 
   async stop(): Promise<void> {

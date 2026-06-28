@@ -28,14 +28,17 @@ export async function recordCommand(args: string[]): Promise<void> {
     onSegment: (seg) => process.stdout.write(`  ▸ ${seg.text}\n`),
   });
 
-  await recorder.start();
-
-  console.log(`● recording — session ${recorder.session.id}`);
+  // Show session info immediately; "Speak now" prints only after the mic is live
+  // (recorder.start() now waits for ffmpeg's first PCM chunk).
+  console.log(`● starting — session ${recorder.session.id}`);
   console.log(`  raw:    ${recorder.session.rawPath}`);
   console.log(`  model:  ${config.modelPath}`);
-  console.log(`  device: avfoundation ${config.micDevice}`);
+  console.log(`  device: ${config.micFormat} ${config.micDevice}`);
   console.log(projectId ? `  project: ${projectId}` : "  project: (unlinked)");
-  console.log("\nSpeak now. Press Enter (or Ctrl-C) to stop.\n");
+
+  await recorder.start();
+
+  console.log("\n● Speak now. Press Enter (or Ctrl-C) to stop.\n");
 
   let stopped = false;
   const finish = async () => {

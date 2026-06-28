@@ -24,11 +24,14 @@ const userHome = process.env.VOICELOGGER_HOME ?? path.join(home, ".voicelogger")
 
 // Transcripts live on the filesystem (see AGENT_AND_VOICELOG_PLAN.md "Storage").
 // Precedence: VOICELOG_DIR env → saved config (set via `voicelogger config dir <path>`) →
-// the historic default. Existing users keep their data without doing anything.
-const dataDir =
-  process.env.VOICELOG_DIR ??
-  loadUserConfig().dataDir ??
-  path.join(home, "Projects", "voice_logs");
+// auto default. The auto default keeps existing users at the legacy ~/Projects/voice_logs
+// (so their recordings don't go missing), but a fresh install lands the friendlier
+// ~/voicelogger.
+function defaultDataDir(): string {
+  const legacy = path.join(home, "Projects", "voice_logs");
+  return existsSync(legacy) ? legacy : path.join(home, "voicelogger");
+}
+const dataDir = process.env.VOICELOG_DIR ?? loadUserConfig().dataDir ?? defaultDataDir();
 
 const MODEL_FILE = "ggml-base.en.bin";
 
