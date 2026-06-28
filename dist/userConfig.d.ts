@@ -1,8 +1,7 @@
 /**
  * Per-machine config saved at ~/.voicelogger/config.json (override the dir with
- * VOICELOGGER_HOME). Currently just the Anthropic key — written with 0600 perms so
- * only you can read it. An ANTHROPIC_API_KEY/ANTHROPIC_AUTH_TOKEN in the
- * environment always takes precedence over the saved value.
+ * VOICELOGGER_HOME). Written with 0600 perms so only you can read it.
+ * Environment variables always take precedence over saved values.
  */
 export interface UserConfig {
     anthropicApiKey?: string;
@@ -10,8 +9,13 @@ export interface UserConfig {
     ledgerBin?: string;
     /** Where to save logs. Falls back to the code default. */
     dataDir?: string;
-    /** Anthropic model the `clean` pass uses. Falls back to the code default. */
+    /** Model name for the `clean` pass. Falls back to the code default. */
     anthropicModel?: string;
+    /** Base URL for an OpenAI-compatible LLM endpoint (OpenRouter, Ollama, etc.).
+     *  When set, the clean pass uses fetch + this endpoint instead of the Anthropic SDK. */
+    llmBaseUrl?: string;
+    /** API key for the above endpoint. Not needed for local endpoints like Ollama. */
+    llmApiKey?: string;
 }
 export declare function configFilePath(): string;
 export declare function loadUserConfig(): UserConfig;

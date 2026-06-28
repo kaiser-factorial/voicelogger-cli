@@ -18,6 +18,7 @@ export async function configCommand(args: string[]): Promise<void> {
   if (args[0] === "show") return showConfig();
   if (args[0] === "dir") return configDir(args.slice(1));
   if (args[0] === "model") return configModel(args.slice(1));
+  if (args[0] === "endpoint") return configEndpoint(args.slice(1));
   if (args[0] === "ledger") return configLedger(args.slice(1));
   return runWizard();
 }
@@ -54,25 +55,39 @@ function showConfig(): void {
     return `${value}  (default)`;
   };
 
+  const endpointUrl = config.llmBaseUrl;
+  const endpointLine = endpointUrl
+    ? sourced(endpointUrl, process.env.LLM_BASE_URL, saved.llmBaseUrl)
+    : "Anthropic (default)";
+  const endpointKeyLine = endpointUrl
+    ? (config.llmApiKey ? `${maskKey(config.llmApiKey)}` : "(none — local endpoint)")
+    : "(n/a)";
+
   console.log(`config file:        ${configFilePath()}`);
   console.log(`anthropic key:      ${keyLine}`);
-  console.log(`logs dir:           ${sourced(config.dataDir, process.env.VOICELOG_DIR, saved.dataDir)}`);
+  console.log(`LLM endpoint:       ${endpointLine}`);
+  console.log(`endpoint key:       ${endpointKeyLine}`);
   console.log(`cleanup model:      ${sourced(config.anthropicModel, process.env.CLAUDE_MODEL, saved.anthropicModel)}`);
+  console.log(`logs dir:           ${sourced(config.dataDir, process.env.VOICELOG_DIR, saved.dataDir)}`);
   console.log(`whisper model file: ${config.modelPath}`);
   console.log(`auto-clean:         ${config.autoCleanMode}`);
   console.log(`project tracker:    ${tracker}`);
 }
 
-/** Set (or reset) the Anthropic model used for cleanup. */
+/** Set (or reset) the model used for cleanup. Works for Anthropic and OpenAI-compat endpoints. */
 function configModel(rest: string[]): void {
   const value = rest[0];
   if (!value) {
     console.log(`cleanup model: ${config.anthropicModel}`);
     console.log("usage: voicelogger config model <name>  (or 'default' to reset)");
-    console.log("examples:");
-    console.log("  claude-sonnet-4-6  (default — balanced)");
-    console.log("  claude-haiku-4-5   (cheaper / faster)");
-    console.log("  claude-opus-4-8    (highest quality, most expensive)");
+    console.log("Anthropic models:");
+    console.log("  claude-sonnet-4-6                      (default — balanced)");
+    console.log("  claude-haiku-4-5                       (cheaper / faster)");
+    console.log("  claude-opus-4-8                        (highest quality)");
+    console.log("OpenRouter free models (set endpoint first):");
+    console.log("  google/gemma-2-27b-it:free");
+    console.log("  meta-llama/llama-3.3-70b-instruct:free");
+    console.log("  mistralai/mistral-7b-instruct:free");
     return;
   }
   if (value === "default") {
@@ -82,6 +97,72 @@ function configModel(rest: string[]): void {
   }
   saveUserConfig({ anthropicModel: value });
   console.log(`✓ cleanup will use ${value}`);
+}
+
+const ENDPOINT_SHORTHANDS: Record<string, string> = {
+  openrouter: "https://openrouter.ai/api/v1",
+  ollama: "http://localhost:11434/v1",
+};
+
+/** Set (or reset) the OpenAI-compatible LLM endpoint for the cleanup pass. */
+async function configEndpoint(rest: string[]): Promise<void> {
+  const value = rest[0];
+  if (!value) {
+    const cur = config.llmBaseUrl;
+    console.log(cur ? `LLM endpoint: ${cur}` : "LLM endpoint: Anthropic (default)");
+    console.log("usage: voicelogger config endpoint <url|openrouter|ollama|default>");
+    console.log("examples:");
+    console.log("  openrouter   → https://openrouter.ai/api/v1  (needs an API key)");
+    console.log("  ollama       → http://localhost:11434/v1      (no key needed)");
+    console.log("  default      → back to Anthropic");
+    return;
+  }
+
+  if (value === "default") {
+    saveUserConfig({ llmBaseUrl: undefined, llmApiKey: undefined });
+    console.log("✓ reset to Anthropic (default).");
+    return;
+  }
+
+  const url = ENDPOINT_SHORTHANDS[value] ?? value;
+  const isLocal = url.includes("localhost") || url.includes("127.0.0.1");
+
+  saveUserConfig({ llmBaseUrl: url });
+  console.log(`✓ LLM endpoint set to ${url}`);
+
+  if (isLocal) {
+    saveUserConfig({ llmApiKey: undefined });
+    console.log("  (no API key needed for local endpoints like Ollama)");
+    console.log("  Make sure Ollama is running: ollama serve");
+    console.log("  Set model:  voicelogger config model <ollama-model-name>");
+    console.log("  e.g.        voicelogger config model llama3.2");
+    return;
+  }
+
+  // Remote endpoint — prompt for API key if we have a TTY.
+  if (!process.stdin.isTTY) {
+    console.log("  Set the API key: voicelogger config endpoint-key <key>");
+    console.log("  Or set LLM_API_KEY in your environment.");
+    return;
+  }
+
+  if (value === "openrouter") {
+    console.log("  Get a free key at: https://openrouter.ai/keys");
+  }
+  const key = await promptLine("  API key (Enter to skip): ");
+  if (key.trim()) {
+    saveUserConfig({ llmApiKey: key.trim() });
+    console.log("  ✓ key saved.");
+  } else {
+    console.log("  ⚠ skipped — set it later: voicelogger config endpoint <url> again, or LLM_API_KEY.");
+  }
+
+  if (value === "openrouter") {
+    console.log("\n  Suggested free models (set with: voicelogger config model <name>):");
+    console.log("    google/gemma-2-27b-it:free");
+    console.log("    meta-llama/llama-3.3-70b-instruct:free");
+    console.log("    mistralai/mistral-7b-instruct:free");
+  }
 }
 
 /** Set (or reset) where logs are saved. Use `default` to drop the saved override. */

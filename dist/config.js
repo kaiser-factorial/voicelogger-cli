@@ -80,6 +80,8 @@ export const config = {
     glossaryPath: process.env.GLOSSARY_PATH ?? path.join(packageRoot, "cleaning", "glossary.md"),
     templatePath: process.env.TEMPLATE_PATH ?? path.join(packageRoot, "cleaning", "template.md"),
     autoCleanMode: parseCleanMode(process.env.VOICELOGGER_AUTOCLEAN) ?? "auto",
+    llmBaseUrl: process.env.LLM_BASE_URL ?? userCfg.llmBaseUrl ?? "",
+    llmApiKey: process.env.LLM_API_KEY ?? userCfg.llmApiKey ?? "",
     ledgerBin,
     ledgerEnabled: ledgerBin !== "",
 };

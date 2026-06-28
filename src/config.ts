@@ -88,6 +88,12 @@ export interface Config {
   /** How `record` handles cleaning on finish (VOICELOGGER_AUTOCLEAN). Default "auto". */
   autoCleanMode: CleanMode;
 
+  // --- OpenAI-compatible LLM endpoint (alternative to Anthropic SDK) ---
+  /** Base URL for an OpenAI-compatible endpoint. Empty = use Anthropic SDK. */
+  llmBaseUrl: string;
+  /** API key for the above. Empty = no key (fine for local endpoints like Ollama). */
+  llmApiKey: string;
+
   // --- project-tracker integration (optional; e.g. The Ledger) ---
   /** Tracker CLI used by `link`. Empty unless connected via LEDGER_BIN or `config ledger`. */
   ledgerBin: string;
@@ -125,6 +131,9 @@ export const config: Config = {
   glossaryPath: process.env.GLOSSARY_PATH ?? path.join(packageRoot, "cleaning", "glossary.md"),
   templatePath: process.env.TEMPLATE_PATH ?? path.join(packageRoot, "cleaning", "template.md"),
   autoCleanMode: parseCleanMode(process.env.VOICELOGGER_AUTOCLEAN) ?? "auto",
+
+  llmBaseUrl: process.env.LLM_BASE_URL ?? userCfg.llmBaseUrl ?? "",
+  llmApiKey: process.env.LLM_API_KEY ?? userCfg.llmApiKey ?? "",
 
   ledgerBin,
   ledgerEnabled: ledgerBin !== "",

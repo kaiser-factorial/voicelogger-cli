@@ -5,8 +5,10 @@ import { config } from "./config.js";
 import { cleanTranscript } from "./cleaner.js";
 import { cleanedBaseName } from "./slug.js";
 import { readRawBody, writeSession } from "./store.js";
-/** Whether Anthropic credentials are available for the cleaning pass. */
+/** Whether credentials are available for the cleaning pass (Anthropic or a configured LLM endpoint). */
 export function hasAnthropicAuth() {
+    if (config.llmBaseUrl)
+        return true; // endpoint configured — key optional (e.g. Ollama)
     return Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
 }
 /** `cleaned/<base>.md`, bumping with -2, -3, … if a different file already has that name. */

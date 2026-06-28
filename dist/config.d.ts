@@ -25,6 +25,10 @@ export interface Config {
     templatePath: string;
     /** How `record` handles cleaning on finish (VOICELOGGER_AUTOCLEAN). Default "auto". */
     autoCleanMode: CleanMode;
+    /** Base URL for an OpenAI-compatible endpoint. Empty = use Anthropic SDK. */
+    llmBaseUrl: string;
+    /** API key for the above. Empty = no key (fine for local endpoints like Ollama). */
+    llmApiKey: string;
     /** Tracker CLI used by `link`. Empty unless connected via LEDGER_BIN or `config ledger`. */
     ledgerBin: string;
     /** Whether a tracker CLI is connected (link will notify it). */

@@ -5,7 +5,7 @@ export interface CleanOutcome {
     /** Full cleaned-file markdown (header + body), ready to render. */
     markdown: string;
 }
-/** Whether Anthropic credentials are available for the cleaning pass. */
+/** Whether credentials are available for the cleaning pass (Anthropic or a configured LLM endpoint). */
 export declare function hasAnthropicAuth(): boolean;
 /**
  * LLM cleaning pass for a session: read its raw body, apply the shared

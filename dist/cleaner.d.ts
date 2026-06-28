@@ -1,11 +1,13 @@
 import { z } from "zod";
 /**
- * LLM-powered cleaning pass (Part B of the plan). Reads a raw transcript and a
- * shared glossary + template, and returns a cleaned Markdown body plus a one-line
- * summary. Uses structured output so the summary can be reused by `link`.
+ * LLM-powered cleaning pass. Reads a raw transcript and a shared glossary + template,
+ * and returns a cleaned Markdown body, a short title, and a one-line summary.
  *
- * Model defaults to Claude Opus 4.8; set CLAUDE_MODEL=claude-haiku-4-5 for a
- * cheaper/faster pass.
+ * Two backends:
+ *   - Anthropic SDK (default): structured output via zodOutputFormat.
+ *   - OpenAI-compatible (when config.llmBaseUrl is set): fetch + json_object.
+ *     Works with OpenRouter, Ollama, Groq, etc. Set LLM_BASE_URL (and LLM_API_KEY
+ *     for remote endpoints) or use `voicelogger config endpoint`.
  */
 declare const CleanResult: z.ZodObject<{
     title: z.ZodString;

@@ -4,12 +4,14 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { config } from "./config.js";
 
 /**
- * LLM-powered cleaning pass (Part B of the plan). Reads a raw transcript and a
- * shared glossary + template, and returns a cleaned Markdown body plus a one-line
- * summary. Uses structured output so the summary can be reused by `link`.
+ * LLM-powered cleaning pass. Reads a raw transcript and a shared glossary + template,
+ * and returns a cleaned Markdown body, a short title, and a one-line summary.
  *
- * Model defaults to Claude Opus 4.8; set CLAUDE_MODEL=claude-haiku-4-5 for a
- * cheaper/faster pass.
+ * Two backends:
+ *   - Anthropic SDK (default): structured output via zodOutputFormat.
+ *   - OpenAI-compatible (when config.llmBaseUrl is set): fetch + json_object.
+ *     Works with OpenRouter, Ollama, Groq, etc. Set LLM_BASE_URL (and LLM_API_KEY
+ *     for remote endpoints) or use `voicelogger config endpoint`.
  */
 const CleanResult = z.object({
   title: z
@@ -39,6 +41,12 @@ export async function cleanTranscript(
   rawBody: string,
   inputs: CleanInputs,
 ): Promise<CleanResult> {
+  return config.llmBaseUrl
+    ? cleanWithOpenAICompat(rawBody, inputs)
+    : cleanWithAnthropic(rawBody, inputs);
+}
+
+async function cleanWithAnthropic(rawBody: string, inputs: CleanInputs): Promise<CleanResult> {
   if (!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN) {
     throw new Error(
       "ANTHROPIC_API_KEY is not set — export it (or ANTHROPIC_AUTH_TOKEN) before running `clean`.",
@@ -63,9 +71,51 @@ export async function cleanTranscript(
   return out;
 }
 
+async function cleanWithOpenAICompat(rawBody: string, inputs: CleanInputs): Promise<CleanResult> {
+  const systemPrompt =
+    buildSystemPrompt(inputs) +
+    '\n\nReturn a JSON object with exactly three keys: "title" (3–6 plain words), ' +
+    '"summary" (one sentence ≤ 20 words), and "cleaned" (the full cleaned transcript in Markdown).';
+
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (config.llmApiKey) headers["Authorization"] = `Bearer ${config.llmApiKey}`;
+
+  const res = await fetch(`${config.llmBaseUrl}/chat/completions`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model: config.anthropicModel,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: rawBody },
+      ],
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => res.statusText);
+    throw new Error(`LLM request failed (${res.status}): ${body}`);
+  }
+
+  const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) throw new Error("LLM returned an empty response");
+
+  const parsed = JSON.parse(content) as Partial<CleanResult>;
+  if (!parsed.title || !parsed.cleaned) {
+    throw new Error('LLM response missing required fields ("title" and/or "cleaned")');
+  }
+  return {
+    title: parsed.title,
+    summary: parsed.summary ?? "",
+    cleaned: parsed.cleaned,
+  };
+}
+
 function buildSystemPrompt({ glossary, template }: CleanInputs): string {
   return [
-    "You clean raw voice-log transcripts for a developer's project tracker (The Ledger).",
+    "You clean raw voice-log transcripts.",
     "The input is a rough speech-to-text transcript: it has disfluencies, false starts,",
     "and mis-transcribed technical terms.",
     "",
