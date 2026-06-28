@@ -95,7 +95,7 @@ const COMMANDS = [
   dir <path>          set where logs save  ('default' to reset)
   model <name>        set the cleanup model  ('default' to reset)
                       Anthropic: claude-sonnet-4-6, claude-haiku-4-5, claude-opus-4-8
-                      OpenRouter: google/gemma-2-27b-it:free, meta-llama/llama-3.3-70b-instruct:free
+                      OpenRouter: run the config wizard to browse live free models
   endpoint <url>      set an OpenAI-compatible LLM endpoint  ('default' to reset to Anthropic)
                       shorthands: openrouter, ollama
   ledger <path>       connect a project tracker CLI  ('off' to disconnect)`,

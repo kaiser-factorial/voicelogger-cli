@@ -83,10 +83,7 @@ function configModel(rest: string[]): void {
     console.log("  claude-sonnet-4-6                      (default — balanced)");
     console.log("  claude-haiku-4-5                       (cheaper / faster)");
     console.log("  claude-opus-4-8                        (highest quality)");
-    console.log("OpenRouter free models (set endpoint first):");
-    console.log("  google/gemma-2-27b-it:free");
-    console.log("  meta-llama/llama-3.3-70b-instruct:free");
-    console.log("  mistralai/mistral-7b-instruct:free");
+    console.log("OpenRouter free models (run `voicelogger config` wizard to browse live list):");
     return;
   }
   if (value === "default") {
@@ -329,6 +326,25 @@ async function wizardKeyStep(provider: Provider): Promise<void> {
   }
 }
 
+/**
+ * Fetch the current list of free model IDs from OpenRouter's public models API.
+ * Returns an empty array on any network/parse failure so callers can fall back gracefully.
+ */
+async function fetchOpenRouterFreeModels(): Promise<string[]> {
+  try {
+    const res = await fetch("https://openrouter.ai/api/v1/models");
+    if (!res.ok) return [];
+    const data = (await res.json()) as { data?: Array<{ id: string; context_length?: number }> };
+    return (data.data ?? [])
+      .filter((m) => m.id.endsWith(":free"))
+      .sort((a, b) => (b.context_length ?? 0) - (a.context_length ?? 0))
+      .map((m) => m.id)
+      .slice(0, 6);
+  } catch {
+    return [];
+  }
+}
+
 /** Step 4 — choose cleanup model. Shows a list scoped to the chosen provider. */
 async function wizardModelStep(provider: Provider): Promise<void> {
   type ModelOpt = { label: string; hint?: string; value: string };
@@ -346,10 +362,14 @@ async function wizardModelStep(provider: Provider): Promise<void> {
     ];
   } else if (provider === "openrouter") {
     heading = "Step 4 — Cleanup model (OpenRouter)";
+    process.stdout.write("  Fetching available free models from OpenRouter…");
+    const live = await fetchOpenRouterFreeModels();
+    process.stdout.write(live.length ? ` ${live.length} found.\n\n` : " (offline, showing defaults)\n\n");
+    const modelIds = live.length
+      ? live
+      : ["meta-llama/llama-3.3-70b-instruct:free", "deepseek/deepseek-r1:free", "qwen/qwq-32b:free"];
     options = [
-      { label: "google/gemma-2-27b-it:free", hint: "smart, completely free", value: "google/gemma-2-27b-it:free" },
-      { label: "meta-llama/llama-3.3-70b-instruct:free", hint: "powerful, free", value: "meta-llama/llama-3.3-70b-instruct:free" },
-      { label: "mistralai/mistral-7b-instruct:free", hint: "fast, free", value: "mistralai/mistral-7b-instruct:free" },
+      ...modelIds.map((id) => ({ label: id, value: id })),
       { label: "type a custom model name", value: "__custom__" },
     ];
   } else {
