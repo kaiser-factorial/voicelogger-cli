@@ -98,11 +98,17 @@ export async function doctorCommand(): Promise<void> {
       : `missing: ${config.modelPath} — run: voicelogger download-model`,
   });
 
+  const cleanReady = hasAnthropicAuth();
+  const cleanDetail = cleanReady
+    ? config.llmBaseUrl
+      ? `${config.llmBaseUrl} (${config.anthropicModel})`
+      : "set"
+    : "not set — run: voicelogger config";
   checks.push({
-    name: "Anthropic API key (clean)",
-    ok: hasAnthropicAuth(),
+    name: "LLM cleanup (clean)",
+    ok: cleanReady,
     required: false,
-    detail: hasAnthropicAuth() ? "set" : "not set — run: voicelogger config",
+    detail: cleanDetail,
   });
 
   // Only shown once a project tracker is connected (config ledger / LEDGER_BIN).
@@ -127,7 +133,7 @@ export async function doctorCommand(): Promise<void> {
   console.log("");
   console.log(
     code === 0
-      ? `Ready to record.${hasAnthropicAuth() ? "" : " (set a key to enable cleanup)"}`
+      ? `Ready to record.${hasAnthropicAuth() ? "" : " (run voicelogger config to enable cleanup)"}`
       : `Not ready — fix ${failed} required item(s) above.`,
   );
   process.exit(code);
