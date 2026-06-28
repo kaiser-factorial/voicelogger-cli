@@ -18,7 +18,7 @@ const CleanResult = z.object({
     .string()
     .describe(
       "A short, file-name-friendly title for this voice log: 3–6 words capturing the topic " +
-        "(e.g. 'Test with music', 'RRG eval brief'). Plain words only — no date, quotes, or punctuation.",
+        "(e.g. 'Test with music', 'API design notes'). Plain words only — no date, quotes, or punctuation.",
     ),
   summary: z
     .string()

@@ -6,8 +6,8 @@ import type { AudioFormat, VoiceSourceKind } from "../types.js";
  * downstream — VAD, transcription, storage, UI — is identical regardless of
  * which source produced the audio.
  *
- *   LaptopMicSource (MVP)  — ffmpeg/getUserMedia → 16 kHz mono PCM
- *   WearabLLMSource (later) — device streams PCM to the same pipeline over WiFi
+ *   LaptopMicSource (MVP)     — ffmpeg → 16 kHz mono PCM from the system mic
+ *   NetworkSource (later)     — device streams PCM to the same pipeline over WiFi
  *
  * Frames are little-endian signed 16-bit mono samples at `format.sampleRate`.
  */

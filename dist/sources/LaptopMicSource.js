@@ -7,8 +7,8 @@ import { config } from "../config.js";
  * MIC_DEVICE — see src/platform.ts and docs/CROSS_PLATFORM.md. macOS is verified;
  * other platforms are experimental.
  *
- * This is the MVP VoiceSource. The WearabLLM variant will implement the same
- * interface by feeding PCM from the device instead of from ffmpeg.
+ * This is the MVP VoiceSource. A network variant could implement the same
+ * interface by feeding PCM from a remote device instead of from ffmpeg.
  */
 export class LaptopMicSource {
     kind = "laptop";
