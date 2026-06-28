@@ -89,19 +89,28 @@ async function cleanWithOpenAICompat(rawBody: string, inputs: CleanInputs): Prom
     response_format: { type: "json_object" },
   });
 
-  const MAX_RETRIES = 3;
+  const MAX_RETRIES = 5;
   let res!: Response;
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     res = await fetch(`${config.llmBaseUrl}/chat/completions`, { method: "POST", headers, body });
     if (res.status !== 429) break;
-    const retryAfter = Number(res.headers.get("Retry-After") ?? "2");
-    const delaySec = Math.min(Math.max(retryAfter, 1), 10);
-    process.stderr.write(`  rate-limited — retrying in ${delaySec}s (attempt ${attempt + 1}/${MAX_RETRIES})…\n`);
+    const retryAfter = Number(res.headers.get("Retry-After") ?? "3");
+    // Exponential backoff, capped at 15s, but never less than what the server asks for.
+    const delaySec = Math.min(Math.max(retryAfter, Math.pow(2, attempt)), 15);
+    process.stderr.write(
+      `  rate-limited — retrying in ${delaySec}s (${attempt + 1}/${MAX_RETRIES})…\n`,
+    );
     await new Promise((r) => setTimeout(r, delaySec * 1000));
   }
 
   if (!res.ok) {
     const errBody = await res.text().catch(() => res.statusText);
+    if (res.status === 429) {
+      throw new Error(
+        `${config.anthropicModel} is rate-limited — try a different model:\n` +
+          "  voicelogger config model <name>   (run 'voicelogger config model' to see options)",
+      );
+    }
     throw new Error(`LLM request failed (${res.status}): ${errBody}`);
   }
 

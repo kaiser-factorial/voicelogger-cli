@@ -334,6 +334,8 @@ async function wizardKeyStep(provider: Provider): Promise<void> {
  * Fetch the current list of free model IDs from OpenRouter's public models API.
  * Returns an empty array on any network/parse failure so callers can fall back gracefully.
  */
+const OPENROUTER_EXCLUDE = ["coder", "code", "content-safety", "embed", "vision", "omni", "vl"];
+
 async function fetchOpenRouterFreeModels(): Promise<string[]> {
   try {
     const res = await fetch("https://openrouter.ai/api/v1/models");
@@ -341,6 +343,7 @@ async function fetchOpenRouterFreeModels(): Promise<string[]> {
     const data = (await res.json()) as { data?: Array<{ id: string; context_length?: number }> };
     return (data.data ?? [])
       .filter((m) => m.id.endsWith(":free"))
+      .filter((m) => !OPENROUTER_EXCLUDE.some((kw) => m.id.toLowerCase().includes(kw)))
       .sort((a, b) => (b.context_length ?? 0) - (a.context_length ?? 0))
       .map((m) => m.id)
       .slice(0, 6);
