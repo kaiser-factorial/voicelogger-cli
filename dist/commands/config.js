@@ -303,10 +303,32 @@ async function wizardKeyStep(provider) {
         console.log("  ⚠ skipped — set LLM_API_KEY or re-run 'voicelogger config'.\n");
     }
 }
-/**
- * Fetch the current list of free model IDs from OpenRouter's public models API.
- * Returns an empty array on any network/parse failure so callers can fall back gracefully.
- */
+const OR_EXCLUDE = ["coder", "code", "content-safety", "embed", "vision", "omni", "vl"];
+function parseParamsBillions(id) {
+    const m = id.match(/(\d+(?:\.\d+)?)b/i);
+    return m ? parseFloat(m[1]) : 0;
+}
+/** Fetch free OpenRouter models, excluding known pinned IDs and specialized model types. */
+async function fetchExtraOpenRouterModels(exclude, count = 3) {
+    try {
+        const res = await fetch("https://openrouter.ai/api/v1/models");
+        if (!res.ok)
+            return [];
+        const data = (await res.json());
+        const pinned = new Set(exclude);
+        return (data.data ?? [])
+            .filter((m) => m.id.endsWith(":free"))
+            .filter((m) => !pinned.has(m.id))
+            .filter((m) => !OR_EXCLUDE.some((kw) => m.id.toLowerCase().includes(kw)))
+            .filter((m) => { const p = parseParamsBillions(m.id); return p === 0 || p <= 72; })
+            .sort((a, b) => (b.context_length ?? 0) - (a.context_length ?? 0))
+            .map((m) => m.id)
+            .slice(0, count);
+    }
+    catch {
+        return [];
+    }
+}
 /** Step 4 — choose cleanup model. Shows a list scoped to the chosen provider. */
 async function wizardModelStep(provider) {
     let heading;
@@ -322,10 +344,17 @@ async function wizardModelStep(provider) {
     }
     else if (provider === "openrouter") {
         heading = `${B("Step 4")} — Cleanup model (OpenRouter)`;
-        options = [
+        const PINNED = [
+            { label: "poolside/laguna-xs.2:free", hint: "fast and capable", value: "poolside/laguna-xs.2:free" },
             { label: "poolside/laguna-m.1:free", hint: "solid general-purpose model", value: "poolside/laguna-m.1:free" },
-            { label: "poolside/laguna-xs.2:free", hint: "faster, lighter", value: "poolside/laguna-xs.2:free" },
             { label: "openai/gpt-oss-20b:free", hint: "OpenAI open-source 20B", value: "openai/gpt-oss-20b:free" },
+        ];
+        process.stdout.write("  Fetching more free models from OpenRouter…");
+        const extra = await fetchExtraOpenRouterModels(PINNED.map((m) => m.value));
+        process.stdout.write(extra.length ? ` ${extra.length} found.\n\n` : " (offline)\n\n");
+        options = [
+            ...PINNED,
+            ...extra.map((id) => ({ label: id, value: id })),
             { label: "type a custom model name", value: "__custom__" },
         ];
     }
