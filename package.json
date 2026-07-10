@@ -67,6 +67,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.106.0",
+    "@local/shield": "file:../shield",
     "zod": "^4.4.3"
   }
 }
