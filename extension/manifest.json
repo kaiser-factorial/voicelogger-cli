@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "voicelogger test-log indicator",
+  "version": "0.1.0",
+  "description": "Shows a border in the active tab while voicelogger test-log recording is running. Talks only to the local voicelogger service on 127.0.0.1:7374 — no secrets, no AI.",
+  "permissions": ["tabs", "alarms"],
+  "host_permissions": ["http://127.0.0.1:7374/*"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["overlay.js", "content-guard.js"],
+      "run_at": "document_start"
+    }
+  ]
+}
