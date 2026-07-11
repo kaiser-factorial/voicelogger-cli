@@ -237,7 +237,7 @@ function configMem(rest: string[]): void {
   saveUserConfig({ memBin: stored });
   console.log(`✓ connected memory hub → ${stored}`);
   console.log("  cleaned logs will be ingested; project context will ground the clean pass.");
-  console.log("  Also set BRICK_MEM_BIN to the same value to ground BRICK MODE adjudication.");
+  console.log("  Also set BULWORK_MEM_BIN to the same value to ground BULWORK MODE adjudication.");
 }
 
 type Provider = "anthropic" | "openrouter" | "ollama";

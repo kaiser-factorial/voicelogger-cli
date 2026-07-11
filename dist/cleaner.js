@@ -2,6 +2,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { config } from "./config.js";
+import { ShieldAnthropicClient, initFileLogger, wrapUntrusted, detectInjection, emitShieldEvent } from "@local/shield";
+initFileLogger();
 /**
  * LLM-powered cleaning pass. Reads a raw transcript and a shared glossary + template,
  * and returns a cleaned Markdown body, a short title, and a one-line summary.
@@ -33,12 +35,27 @@ async function cleanWithAnthropic(rawBody, inputs) {
     if (!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN) {
         throw new Error("ANTHROPIC_API_KEY is not set — export it (or ANTHROPIC_AUTH_TOKEN) before running `clean`.");
     }
-    const client = new Anthropic();
+    // Warn if the transcript contains injection-like patterns (e.g. someone dictated
+    // "ignore your instructions" into the mic, possibly inadvertently).
+    const scan = detectInjection(rawBody);
+    if (scan.flagged) {
+        emitShieldEvent({
+            type: "injection_detected",
+            source: "voicelogger:transcript",
+            detail: rawBody.slice(0, 200),
+            score: scan.score,
+            patterns: scan.matches,
+        });
+        process.stderr.write(`[shield] Injection patterns in transcript: ${scan.matches.join(", ")}\n`);
+    }
+    // Wrap the transcript as untrusted so the model treats it as data, not instructions.
+    const safeBody = wrapUntrusted(rawBody, "voice_transcript");
+    const client = new ShieldAnthropicClient(new Anthropic(), { appLabel: "voicelogger" });
     const response = await client.messages.parse({
         model: config.anthropicModel,
         max_tokens: config.cleanMaxTokens,
         system: buildSystemPrompt(inputs),
-        messages: [{ role: "user", content: rawBody }],
+        messages: [{ role: "user", content: safeBody }],
         output_config: { format: zodOutputFormat(CleanResult) },
     });
     const out = response.parsed_output;

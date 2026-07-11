@@ -35,16 +35,17 @@ skeleton for the visual "recording active" indicator (Phase 1c). It polls
 ## Things a fresh session needs to know that aren't obvious from this repo alone
 
 - **Repo layout:** this repo lives at `~/Projects/ledger_root/voicelogger-cli`, a sibling of
-  `ledger` (the GUI app), `ledger-cli` (Go CLI), `ledger-mcp` (MCP server), `brick` (focus
-  enforcer), and `shield` (`~/Projects/ledger_root/shield` — a prompt-injection defense library
-  several of these depend on via `file:../shield`). **None of these repos are in a monorepo** —
+  `ledger` (the GUI app), `ledger-cli` (Go CLI), `ledger-mcp` (MCP server), `bulwork` (focus
+  enforcer, renamed from "brick" in July 2026 — the old name collided with an existing product),
+  and `shield` (`~/Projects/ledger_root/shield` — a prompt-injection defense library several of
+  these depend on via `file:../shield`). **None of these repos are in a monorepo** —
   each has its own independent GitHub remote, and `ledger_root` itself is not a git repo. A file
   placed at the `ledger_root` level (outside any of these) will never be picked up by `git push`
   from any of them — see `docs/TEST_LOG_PLAN.md` locked decision #5 for why that matters for the
   `extension/overlay.js` file specifically (it's a manual vendored copy of
-  `../brick/extension/overlay.js`, not a shared import — if you change one, change the other by
+  `../bulwork/extension/overlay.js`, not a shared import — if you change one, change the other by
   hand, per the note at the top of both files).
-- **Port convention across this workspace:** brick's local service = `:7373`, voicelogger's
+- **Port convention across this workspace:** bulwork's local service = `:7373`, voicelogger's
   (planned, Phase 1a-ii) = `:7374`. Keep it that way.
 - **⚠ Uncommitted work exists in sibling repos that this conversation did not create.** As of
   2026-07-10, `git status` shows modified files in `ledger/src/` (`App.tsx`, `ProjectCard.tsx`,

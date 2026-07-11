@@ -9,7 +9,7 @@ import type { VoiceLogSession } from "./types.js";
 export declare function queryProjectContext(session: VoiceLogSession): Promise<string | undefined>;
 /**
  * Ingest a freshly-cleaned voice log into the Memory Hub.
- * Called after cleaning — seeds the flywheel so future sessions and BRICK
+ * Called after cleaning — seeds the flywheel so future sessions and BULWORK
  * adjudication have project-specific context to draw from.
  * Fire-and-forget: errors are swallowed so the caller doesn't need to await this.
  */

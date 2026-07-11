@@ -88,7 +88,7 @@ export async function runClean(session: VoiceLogSession): Promise<CleanOutcome> 
   await writeSession(session);
 
   // Seed the Memory Hub flywheel: index this cleaned log so future sessions and
-  // BRICK adjudication have richer context about this project. Fire-and-forget.
+  // BULWORK adjudication have richer context about this project. Fire-and-forget.
   if (config.memEnabled) {
     ingestCleanedLog(session, cleanedPath).catch(() => {});
   }

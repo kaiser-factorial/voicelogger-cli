@@ -1,7 +1,7 @@
 // voicelogger test-log indicator — background service worker.
 //
 // Polls voicelogger's local test-log status endpoint and forwards state changes to the active
-// tab's content script, which renders the border via overlay.js (BrickOverlay, vendored — see
+// tab's content script, which renders the border via overlay.js (BulworkOverlay, vendored — see
 // that file's header for why this is a copy and not a shared import). This worker holds no
 // secrets and runs no AI: it only asks "is test-log recording right now?" and relays the answer.
 //
@@ -32,7 +32,7 @@ async function fetchActive() {
     }
   } catch {
     // Connection refused / voicelogger not running -> fail closed to "inactive". Same philosophy
-    // as brick's fail-open-to-allow: the extension should never get stuck showing a border
+    // as bulwork's fail-open-to-allow: the extension should never get stuck showing a border
     // because the local service isn't there.
   }
   return false;

@@ -35,15 +35,15 @@ treat those as fully settled.
    (`src/types.ts`) gets an optional, nullable `speaker` field. That part is genuinely small since
    the segment type already exists — but wiring it through meaningfully (cleaner prompt, `show`
    rendering) still touches more than one file; don't treat it as a one-line change.
-3. **Browser visual indicator: VL ships its own minimal extension**, vendoring a copy of brick's
+3. **Browser visual indicator: VL ships its own minimal extension**, vendoring a copy of bulwork's
    `overlay.js` primitive rather than sharing a package — see that file's header comment in both
-   repos for why (ledger_root isn't a monorepo; brick and voicelogger-cli are independently
-   pushed GitHub repos). Local status port convention: **brick = `:7373`, voicelogger = `:7374`**,
+   repos for why (ledger_root isn't a monorepo; bulwork and voicelogger-cli are independently
+   pushed GitHub repos). Local status port convention: **bulwork = `:7373`, voicelogger = `:7374`**,
    and the port is **not user-configurable in v1** — the extension hardcodes it, and making it
    configurable later would break that without a matching extension update.
 4. **Desktop-app visual indicator is deferred.** Menu-bar icon only, lower priority, not designed
    yet — revisit once browser-based testing (the common case) is working end to end.
-5. **Shared code across brick/voicelogger-cli is vendored, not packaged.** No git submodule, no
+5. **Shared code across bulwork/voicelogger-cli is vendored, not packaged.** No git submodule, no
    subtree, no npm package yet. **Caveat found during the completeness pass:** voicelogger-cli's
    `package.json` already has `"@local/shield": "file:../../shield"` — a dependency on a sibling
    repo (`~/Projects/shield`) outside `ledger_root` entirely. So the "protects VL's clean-clone
@@ -119,7 +119,7 @@ Doesn't need Ledger.
       summarization) matching how plain `record`'s cleanup already degrades without a key.
 - [ ] opens the resulting URL and starts Phase 1a's recording simultaneously
 - [ ] tests: detection heuristics against a few real project shapes in this workspace (ledger,
-      ledger-cli, brick), cache read/write, error-capture path
+      ledger-cli, bulwork), cache read/write, error-capture path
 
 ### Phase 1c — browser visual indicator
 

@@ -2,7 +2,7 @@
 
 A minimal browser extension: shows a thin yellow border in the active tab while `voicelogger
 test-log` recording is running, so you have a visible signal you're being recorded during manual
-QA testing. Renders through the same overlay primitive brick's border uses — see
+QA testing. Renders through the same overlay primitive bulwork's border uses — see
 [overlay.js](overlay.js) for why it's a vendored copy rather than a shared import.
 
 This is scaffolding, built ahead of the server side. **Not wired up to real recording state yet.**
@@ -36,7 +36,7 @@ and serves `/status`, this should start working with no changes to the extension
 
 - No icon set yet (manifest omits `icons`/`action.default_icon` — Chrome falls back to a generic
   icon). Add real icons when this graduates past skeleton.
-- Port convention across this workspace: **brick = `:7373`, voicelogger = `:7374`.** Keep it that
+- Port convention across this workspace: **bulwork = `:7373`, voicelogger = `:7374`.** Keep it that
   way so the two never collide if both happen to be running.
 - `background.js` polls via `chrome.alarms`, which has a 1-minute floor once packed — see the
   comment at the top of that file for the tradeoff and the upgrade path if snappier toggling is
