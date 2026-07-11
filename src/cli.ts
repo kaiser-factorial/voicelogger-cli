@@ -15,6 +15,7 @@ import { linkCommand } from "./commands/link.js";
 import { listCommand } from "./commands/list.js";
 import { recordCommand } from "./commands/record.js";
 import { showCommand } from "./commands/show.js";
+import { testCommand } from "./commands/test.js";
 
 type Group = "Record" | "Browse" | "Integrate" | "Setup";
 const GROUPS: Group[] = ["Record", "Browse", "Integrate", "Setup"];
@@ -54,6 +55,20 @@ const COMMANDS: Command[] = [
                    --feature is given without --scope
   --feature <note> test-log feature/topic under test (seeds Ledger's future dropdown)`,
     run: recordCommand,
+  },
+  {
+    name: "test",
+    group: "Record",
+    short: "launch + narrate a QA-testing pass",
+    summary: "detect a project, get it running, open it, then record --test-log",
+    usage: "voicelogger test <path> [--prod [<link>]] [--redetect] [record --test-log flags]",
+    options: `  <path>           project directory to test (Tauri/Node/Go — detected automatically)
+  --prod [<link>]  open a prod URL instead of a dev server; <link> stores it, bare reuses
+                   the cached one
+  --redetect       ignore the cached launch recipe and re-detect/re-trial from scratch
+  ...              any 'record' flag (--project, --user, --title, --scope, --feature,
+                   --app, --clean/--no-clean) is forwarded — --test-log is implied`,
+    run: testCommand,
   },
   {
     name: "clean",

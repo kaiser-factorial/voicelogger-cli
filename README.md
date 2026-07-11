@@ -117,6 +117,9 @@ voicelogger record --app myapp           # record + copy into a registered app d
 voicelogger record --test-log            # narrate QA-testing observations (see below)
 voicelogger record --test-log --user al  # tag the narrator (metadata only, no diarization)
 voicelogger record --test-log --feature "checkout flow"   # scope to one feature
+voicelogger test ~/Projects/myapp        # detect + launch myapp, open it, record --test-log
+voicelogger test ~/Projects/myapp --prod https://myapp.example.com  # open a prod link instead
+voicelogger test ~/Projects/myapp --redetect   # ignore the cached recipe, re-detect from scratch
 
 # Browsing
 voicelogger list                         # all sessions, newest first
@@ -186,6 +189,17 @@ the right variant even if auto-clean was skipped.
 duration — `GET /status` and `POST /stop`, both requiring an `X-Voicelogger-Client` header. It's
 what the browser extension indicator (`extension/`) and, later, other tools poll/control a
 session with — see `docs/TEST_LOG_PLAN.md` for the full design.
+
+**`voicelogger test <path>`:** a launcher on top of `--test-log`. It detects what kind of
+project lives at `<path>` (Tauri via `tauri.conf.json`'s exact `devUrl`, Node via a `package.json`
+`dev`/`serve`/`start` script — tried in that order since not every project's `dev` script is
+actually its server — or a Go CLI via `go.mod`, which skips the browser step entirely and just
+makes sure a binary is built), reuses an already-running server instead of starting a duplicate,
+opens the result in your browser, and then records exactly as `--test-log` does. Any `record`
+flag can be forwarded (`voicelogger test ~/app --user alex --feature "checkout flow"`). The
+detected recipe is cached at `~/.voicelogger/launch.json`, keyed by path — pass `--redetect` to
+ignore it and start fresh. On a launch/build failure, if you have an Anthropic key configured,
+it prints an LLM-summarized, copy-pasteable handoff message for another coding-agent session.
 
 **LLM provider options:**
 

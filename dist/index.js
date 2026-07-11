@@ -23,6 +23,10 @@ export { loadUserConfig, saveUserConfig, configFilePath, applyStoredEnv, } from 
 export { setupApiKey } from "./setupKey.js";
 export { loadApps, getApp, upsertApp, removeApp, appsFilePath, } from "./apps.js";
 export { pushSessionToApp } from "./appPush.js";
+export { detectProject, loadLaunchCache, saveLaunchRecipe, launchFilePath, NODE_DEV_CANDIDATES, } from "./launch.js";
+export { resolveDevServer } from "./launchRun.js";
+export { buildHandoffMessage, hasLaunchSummarizerAuth } from "./launchError.js";
+export { openUrl } from "./openUrl.js";
 export { slugify, dateStamp, cleanedBaseName } from "./slug.js";
 export { micDefaults } from "./platform.js";
 export { resolveAutoCleanMode, parseCleanMode } from "./cleanMode.js";

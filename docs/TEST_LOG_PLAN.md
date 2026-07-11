@@ -141,23 +141,102 @@ different-sized deliverables — don't treat this as one lump:**
 Builds on 1a (calls into its recording start/stop + status server — does not duplicate them).
 Doesn't need Ledger.
 
-- [ ] deterministic project-type detection (package.json scripts, `tauri.conf.json` presence, etc.)
-- [ ] launch-recipe cache — extend `apps.json` (or a new file) with something like
-      `launch: { dev: { cmd, cwd, detectedAt }, prod: { url, setAt } }`
-- [ ] `--prod <link>` stores directly on first use; subsequent `--prod` alone reuses the cached link
-- [ ] check whether a dev server is already running for the project before starting a new one;
-      wait for readiness before opening the URL, not just "process spawned"
-- [ ] teardown: what happens to the launched dev server when the test-log session ends — left
-      running, or torn down too? (not decided yet — add to open questions if not resolved during
-      1b)
-- [ ] on launch/build error: capture stderr/stdout, LLM-summarize, produce a copy-pasteable
+**Design decisions made while building (resolving this section's open questions):**
+
+- **Launch-recipe cache is a *new* file, `~/.voicelogger/launch.json`, not an `apps.json`
+  extension** — keyed by the project's resolved absolute path, not an app name. `apps.json` is
+  keyed by a name you chose for a *push target*; a tested path has no reason to already have (or
+  need) a name, and forcing one would mean auto-registering push-target entries for directories
+  the user never asked to push logs into. A real project shape survey (`ledger`, `ledger-cli`,
+  `bulwork`) also showed detection is genuinely heterogeneous — see the schema below — which
+  argued further for a purpose-built shape over bolting onto `AppEntry`.
+- **Detection is a trial, not a single guess, for Node projects.** The survey found bulwork's
+  own `"dev"` script (`tsx src/cli.ts`) is its CLI entry point, not a server — the actual dev
+  server is `"serve"` (`tsx src/server.ts`). A single hardcoded "always run `dev`" rule would
+  have picked the wrong script for a repo in this very workspace. Instead: try `dev`, `serve`,
+  `start` (whichever scripts exist) in that priority order; a candidate that exits within a
+  short grace window without ever printing a `localhost`/`127.0.0.1` URL is treated as a dud and
+  the next one is tried. The winning command is cached so later runs skip the trial entirely
+  (see schema). Tauri projects skip trial-and-error altogether: `tauri.conf.json`'s
+  `build.devUrl` and `build.beforeDevCommand` state the answer exactly (ledger has one at
+  `src-tauri/tauri.conf.json`, confirmed against the real repo).
+- **Go projects don't fit the "dev server on a URL" model at all** — confirmed against
+  `ledger-cli`: a `go.mod` + cobra CLI with no server, no Makefile, no run script. `test` treats
+  a `go.mod`-rooted project as a build-and-run CLI: no URL, no browser open, just make sure a
+  binary exists (building if needed) and start the test-log recording so the user can narrate
+  while invoking it manually in a terminal.
+- **Teardown: the dev server is never torn down by `voicelogger`, regardless of who started
+  it.** The "check whether one's already running before starting a new one" requirement (below)
+  already implies dev servers are expected to routinely outlive a single `test` invocation —
+  tearing one down on test-log stop would be surprising (the user may still be poking at the
+  running app after ending the narration) and actively harmful if it wasn't this invocation's
+  child in the first place. A server this invocation *does* spawn is started detached
+  (`unref()`ed, own process group) specifically so the recording process's own Ctrl-C doesn't
+  propagate to it and kill it out from under the user.
+- **Handoff-message format on launch error** (copy-pasteable into another agent session):
+  a plain-text block with the command + cwd, the exit code (or "timed out waiting for
+  readiness"), the captured stdout/stderr tail, and an LLM summary line — or, with no API key,
+  just the captured output with no summary. See `src/launchError.ts`.
+
+**Cache schema** (`~/.voicelogger/launch.json`, `Record<absolutePath, LaunchRecipe>`):
+```
+{ kind: "tauri" | "node" | "go-cli" | "unknown",
+  dev?: { cmd: string, cwd: string, url?: string, detectedAt: string, lastUrl?: string },
+  prod?: { url: string, setAt: string },
+  cliBin?: string }
+```
+`dev.url` is the known-in-advance URL for `tauri` (from `tauri.conf.json`); `node` recipes
+discover it at runtime and cache it as `lastUrl` once seen. `--redetect` forces a fresh trial
+instead of trusting the cache (e.g. if a project's scripts changed).
+
+- [x] deterministic project-type detection (package.json scripts, `tauri.conf.json` presence, etc.)
+      — `src/launch.ts`'s `detectProject()`. Pure fs/config inspection, no agent dependency
+      (locked decision #7) — verified against the three real sibling repos above.
+- [x] launch-recipe cache — new `~/.voicelogger/launch.json`, see schema above.
+- [x] `--prod <link>` stores directly on first use; subsequent `--prod` alone reuses the cached link
+- [x] check whether a dev server is already running for the project before starting a new one;
+      wait for readiness before opening the URL, not just "process spawned" — `src/launchRun.ts`'s
+      `resolveDevServer()`: probes a known/cached URL first (skips spawning if already live), else
+      trials candidates and scrapes stdout for a `localhost`/`127.0.0.1` URL as the readiness
+      signal. Falls back to "press Enter once ready" if a long-running process never prints one.
+- [x] teardown — resolved above: never torn down, spawned detached so it survives.
+- [x] on launch/build error: capture stderr/stdout, LLM-summarize, produce a copy-pasteable
       handoff message for another agent session. **Explicitly not doing codebase-aware fix
       suggestions in v1** — that's a heavier capability that duplicates whatever coding-agent
       session is already active on the project. Needs a no-API-key fallback (plain error, no
       summarization) matching how plain `record`'s cleanup already degrades without a key.
-- [ ] opens the resulting URL and starts Phase 1a's recording simultaneously
-- [ ] tests: detection heuristics against a few real project shapes in this workspace (ledger,
-      ledger-cli, bulwork), cache read/write, error-capture path
+      **Scope call:** `src/launchError.ts`'s summarizer is Anthropic-only (checks
+      `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` directly) — it does *not* reuse `cleaner.ts`'s
+      OpenAI-compatible-endpoint fallback. This is a secondary, nice-to-have summarization step,
+      not the core cleaning feature; giving it full multi-provider parity wasn't worth the extra
+      surface for v1. Captured output is wrapped via `@local/shield`'s `wrapUntrusted` before
+      reaching the LLM, matching `cleaner.ts`'s handling of transcript text — build output is
+      arbitrary text from (potentially) untrusted dependency build scripts.
+- [x] opens the resulting URL and starts Phase 1a's recording simultaneously — `commands/test.ts`
+      calls `recordCommand(["--test-log", ...args])` **directly, in-process**, not as a spawned
+      subprocess. `recordCommand`'s own `finish()` already calls `process.exit()`, and `test` has
+      no work left to do after recording ends (per the teardown decision), so letting that be the
+      whole invocation's exit is correct, not a shortcut — it's the most literal reading of
+      decision #1's "calls into 1a's start/stop, does not duplicate it": the exact same function,
+      not a re-implementation or a re-invocation via subprocess.
+- [x] tests: detection heuristics against a few real project shapes in this workspace (ledger,
+      ledger-cli, bulwork), cache read/write, error-capture path. `tests/launch.test.ts`
+      (detection against the real sibling repos — skips gracefully if one isn't present rather
+      than failing, for portability; cache round-trip), `tests/launchRun.test.ts` (synthetic
+      fixtures for the dud/winner trial, reuse-probe, cached-command-skips-trial, `--redetect`,
+      and the failed/error-capture path). A real bug surfaced during this pass, not just
+      flakiness: `trialNodeCandidates` could mis-classify a candidate that exited *past* its
+      grace window with no URL as a success-shaped result, which the caller then read as
+      `"running-no-url"` instead of `"failed"` — fixed by returning an explicit `{failed, cmd}`
+      shape for that case instead of silently reusing the success shape (see `launchRun.ts`).
+      Manually verified end-to-end too: `go-cli` detection + the full hand-off into
+      `record --test-log` against the real `ledger-cli` repo (binary already present, so no
+      build needed), and `unknown` detection's error message against an empty directory.
+      Didn't spin up bulwork's *real* dev server for a full happy-path check — something else
+      in this environment already held its `:7373` port (an unrelated stray process, not part
+      of this repo), and standing up a real server is heavier than the synthetic-fixture
+      coverage already gives for the exact scenario that mattered (bulwork's `dev` ≠ its
+      server).
 
 ### Phase 1c — browser visual indicator
 
@@ -219,9 +298,12 @@ and Phase 1a's control-surface shape** — don't start Phase 2 UI work until tho
 
 ## Open questions for when we get to Phase 1b/2
 
-- Exact launch-recipe schema and where it lives (`apps.json` extension vs. a new file)
-- Exact shape of the "handoff message for another agent" the launcher produces on error
-- Whether the launcher tears down the dev server it started when the test-log session ends
+- ~~Exact launch-recipe schema and where it lives~~ — **resolved in Phase 1b:** new
+  `~/.voicelogger/launch.json`, keyed by absolute path. See Phase 1b's design-decisions block.
+- ~~Exact shape of the "handoff message for another agent"~~ — **resolved in Phase 1b:** see
+  `src/launchError.ts` and Phase 1b's design-decisions block.
+- ~~Whether the launcher tears down the dev server~~ — **resolved in Phase 1b:** never; spawned
+  detached so it survives regardless.
 - **Who writes the Firestore feature-note cache** (decision #6) — Ledger reading VL's local index
   directly, a new `ledger-cli` command, or an extension to `link`
 - ~~Exact shape of the VL→Ledger/launcher control surface~~ — **resolved in Phase 1a-ii:** start

@@ -24,6 +24,10 @@ export { loadUserConfig, saveUserConfig, configFilePath, applyStoredEnv, type Us
 export { setupApiKey } from "./setupKey.js";
 export { loadApps, getApp, upsertApp, removeApp, appsFilePath, type AppEntry, type AppRegistry, } from "./apps.js";
 export { pushSessionToApp } from "./appPush.js";
+export { detectProject, loadLaunchCache, saveLaunchRecipe, launchFilePath, NODE_DEV_CANDIDATES, type ProjectKind, type DevRecipe, type ProdRecipe, type LaunchRecipe, type LaunchCache, } from "./launch.js";
+export { resolveDevServer, type DevServerResult, type LaunchFailure } from "./launchRun.js";
+export { buildHandoffMessage, hasLaunchSummarizerAuth } from "./launchError.js";
+export { openUrl } from "./openUrl.js";
 export { slugify, dateStamp, cleanedBaseName } from "./slug.js";
 export { micDefaults, type MicDefaults } from "./platform.js";
 export { resolveAutoCleanMode, parseCleanMode } from "./cleanMode.js";
