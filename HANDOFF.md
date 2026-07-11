@@ -88,9 +88,9 @@ open question, see the plan doc) — don't start Phase 2 UI work before that's r
 plan's own gate. In practice that leaves Phase 1c's manual step as the only unblocked, ready-to-
 run next action.
 
-**Committed as of this note:** Phase 1a and 1b are both committed to git (not yet pushed to
-`origin` — check before assuming they are). The icon set and this doc's own updates for Phase 1c
-are the only things possibly still uncommitted — check `git status` if picking this up fresh.
+**Committed and pushed as of this note (2026-07-11):** Phase 1a, 1b, and 1c's icon/verification
+work are all committed to `main` and pushed to `origin` — `git status` should show a clean tree.
+If it's dirty, that's new since this note, not a leftover.
 
 ## Things a fresh session needs to know that aren't obvious from this repo alone
 
@@ -110,11 +110,9 @@ are the only things possibly still uncommitted — check `git status` if picking
   that way.
 - **A whole rename operation happened between this doc's first draft and now** (2026-07-10:
   `brick` → `bulwork`, unrelated to test-log — see the extension note above). `bulwork`, `ledger`,
-  `shield`, and `ledger-cli` were clean, committed, and pushed as of that rename. `voicelogger-cli`
-  is **not** in that state right now — see the "not yet committed" note above for exactly what's
-  outstanding (Phase 1b, on disk but uncommitted) and the fact that Phase 1a's own commit hasn't
-  been pushed to `origin` yet either. Don't assume a dirty `git status` here is a leftover from
-  someone else's work without checking first.
+  `shield`, and `ledger-cli` were clean, committed, and pushed as of that rename.
+  `voicelogger-cli` has since caught back up — see the "committed and pushed" note above. Don't
+  assume a dirty `git status` here is a leftover from someone else's work without checking first.
 - **`src/cleaner.ts` now integrates `@local/shield`** (prompt-injection scanning + wrapping on the
   cleanup LLM call) — a separate, already-completed piece of work, unrelated to test-log. Don't be
   surprised by shield imports there; nothing about it blocks or changes the test-log build.
