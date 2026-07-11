@@ -5,11 +5,45 @@
 
 ---
 
-## ▶ Next up — Test-log mode, Phase 1c or Phase 2
+## ▶ Next up — Test-log mode, finish Phase 1c (needs YOU) or start Phase 2
 
-**Where we are (2026-07-10):** Phase 1 is fully done — 1a-i (mode + prompt), 1a-ii (storage +
-control surface + server), and 1b (the `voicelogger test <path>` launcher). `voicelogger test`
-is a complete, tested, manually-verified feature:
+**Where we are (2026-07-11):** Phase 1a and 1b are fully done and committed. Phase 1c (the
+browser extension) is as far as it can go **without a human** — read the next section before
+doing anything else here.
+
+### Phase 1c is blocked on a step only you can do
+
+Loading an unpacked extension requires clicking "Load unpacked" in `chrome://extensions` and
+then picking the `extension/` directory in a native OS file dialog. That page is blocked from
+browser automation entirely — confirmed against both the sandboxed preview browser and a real
+connected Chrome in this session. This is almost certainly deliberate: an agent silently
+installing a content-script extension that runs on every `http`/`https` page you visit, into
+your real browser, without you doing it yourself, is exactly the kind of thing that shouldn't
+happen without a human's hands on it.
+
+**What's already done, so this should be quick once you're at the keyboard:**
+- The real `:7374` server, the extension skeleton, and the required auth header are all built
+  and verified — including a check that plain `curl` testing never exercised: a real CORS
+  preflight (`OPTIONS` + `Origin: chrome-extension://…`) followed by the actual `GET`, both
+  against a live `record --test-log` session, came back correct. `background.js`'s `fetchActive()`
+  sends exactly that shape, so it should work against a real installed extension.
+- A real icon set now exists (`extension/icons/`) — a small dark square with a yellow border
+  ring, matching the on-page indicator's own color.
+
+**To finish Phase 1c yourself:**
+1. `chrome://extensions` → enable **Developer mode** → **Load unpacked** → select
+   `voicelogger-cli/extension/`.
+2. Run through the manual QA checklist in `docs/TEST_LOG_PLAN.md`'s Phase 1c section: start a
+   `record --test-log` session → border appears within ~60s (the `chrome.alarms` floor) →
+   switch tabs → border follows the newly-active tab → end the session → border clears → kill
+   the server mid-session (Ctrl-C the `record` process, or `kill -9` it) → border doesn't get
+   stuck showing "active."
+3. Come back and tell me what you saw — if something's off (the ~60s alarm lag is a known,
+   explicitly-flagged-as-revisitable tradeoff; anything else is worth a closer look), I can dig
+   into `background.js`/`content-guard.js`/`overlay.js` from there. I can't watch it happen, but
+   I can fix whatever you report.
+
+### What's done in Phase 1 (1a-i, 1a-ii, 1b)
 
 - Deterministic project-type detection (`src/launch.ts`'s `detectProject()`), verified against
   the three real sibling repos: `ledger` → Tauri (`devUrl`/`beforeDevCommand` read exactly from
@@ -47,21 +81,16 @@ is a complete, tested, manually-verified feature:
   written carefully to stand alone; if anything in it seems to assume context you don't have,
   that's a bug in the doc, not a gap you need to fill from memory of a prior session.
 
-**Concrete next action — pick one, neither blocks the other:**
+**If Phase 1c's manual QA is genuinely not happening right now** (no one's at a browser),
+**Phase 2** (Ledger integration) is the other option — but it's **blocked** until decision #6's
+Firestore-writer mechanism is resolved (who writes the Firestore feature-note cache — still an
+open question, see the plan doc) — don't start Phase 2 UI work before that's real, per the
+plan's own gate. In practice that leaves Phase 1c's manual step as the only unblocked, ready-to-
+run next action.
 
-1. **Phase 1c** (browser extension): the real `:7374` server it needs has existed since 1a-ii
-   and was re-verified against `test`'s hand-off in this pass. Still open: an actual manual QA
-   pass with the extension loaded in a real browser against a live session — see Phase 1c's
-   checklist in the plan doc, including the alarm-lag tradeoff worth confirming for real.
-2. **Phase 2** (Ledger integration): **blocked** until decision #6's Firestore-writer mechanism
-   is resolved (who writes the Firestore feature-note cache — still an open question, see the
-   plan doc) — don't start Phase 2 UI work before that's real, per the plan's own gate.
-
-**Not yet committed to git as of this note** — Phase 1b's files (`src/launch.ts`,
-`src/launchRun.ts`, `src/launchError.ts`, `src/openUrl.ts`, `src/commands/test.ts`, their tests,
-and the `cli.ts`/`index.ts` wiring) are on disk but uncommitted. If you're picking this up fresh
-and `git status` looks dirty, check whether that's this — don't assume it's stray/unrelated work
-without looking first.
+**Committed as of this note:** Phase 1a and 1b are both committed to git (not yet pushed to
+`origin` — check before assuming they are). The icon set and this doc's own updates for Phase 1c
+are the only things possibly still uncommitted — check `git status` if picking this up fresh.
 
 ## Things a fresh session needs to know that aren't obvious from this repo alone
 

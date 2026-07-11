@@ -45,8 +45,11 @@ as expected against it.
 
 ## Notes
 
-- No icon set yet (manifest omits `icons`/`action.default_icon` — Chrome falls back to a generic
-  icon). Add real icons when this graduates past skeleton.
+- Icon set: `icons/icon{16,32,48,128}.png` — a dark square with a yellow border ring, a literal
+  miniature of the on-page indicator this extension draws (`TESTLOG_COLOR` in
+  `content-guard.js`). No `action`/popup — this extension has no toolbar UI by design, so there's
+  no `action.default_icon` to set; `icons` covers its identity in chrome://extensions and the
+  install dialog.
 - Port convention across this workspace: **bulwork = `:7373`, voicelogger = `:7374`.** Keep it that
   way so the two never collide if both happen to be running.
 - `background.js` polls via `chrome.alarms`, which has a 1-minute floor once packed — see the

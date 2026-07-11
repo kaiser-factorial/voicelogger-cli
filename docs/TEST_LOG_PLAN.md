@@ -255,22 +255,31 @@ instead of trusting the cache (e.g. if a project's scripts changed).
       for test-log — same skeleton, same dependency on the not-yet-built `:7374/status` endpoint,
       just current names. If you're diffing against an older version of this repo and see
       `BulworkOverlay` where you expected `BrickOverlay`, that's why.
-- [ ] **unblocked as of 1a-ii** (2026-07-11): the real `:7374` server now exists and was manually
-      verified against `curl`. `background.js` was updated to send the now-required
-      `X-Voicelogger-Client` header (a small, in-scope fix caused directly by 1a-ii's auth
-      design — not itself "wiring up for real"). Still not done: an actual manual QA pass with
-      the extension loaded in a real browser against a real `record --test-log` session. Not
-      literally "zero changes" as originally claimed here — expect to actually exercise (and
-      likely adjust) the polling logic against a real server, especially the ~60s alarm-driven
-      lag on session start. Keeping poll-based (not switching to a pushed
-      `chrome.runtime.connect` port) for v1 is a judgment
-      call worth revisiting once this is used for real: annoying lag at session *start* is
-      probably tolerable for QA narration (you're not reacting in real time to the border itself),
-      but say so explicitly rather than assuming it's fine.
-- [ ] real icon set (currently omitted from manifest)
-- [ ] manual QA checklist once wired up (start session → border appears within alarm lag → switch
-      tabs → border follows → end session → border clears → kill server mid-session → border
-      doesn't get stuck)
+- [x] **network layer verified against the real server** (2026-07-11): `curl`-based testing (1a-ii,
+      1b) never actually exercised what a real browser does — Node's `fetch()`/`curl` don't send
+      an `Origin` header or preflight the way a browser extension's `fetch()` automatically does
+      for a cross-origin request carrying a custom header. Explicitly tested that path: a real
+      `record --test-log` session, then a manual CORS preflight (`OPTIONS` with
+      `Origin: chrome-extension://…` + `Access-Control-Request-Headers: x-voicelogger-client`)
+      followed by the actual `GET` with that same `Origin` header — both came back correct
+      (`Access-Control-Allow-Origin` reflecting the extension origin, `X-Voicelogger-Client`
+      allowed). `background.js`'s `fetchActive()` sends exactly this shape, so this confirms it
+      will work against a real installed extension, not just against `curl`.
+- [x] real icon set — `extension/icons/icon{16,32,48,128}.png`: a dark square with a yellow
+      border ring, a literal miniature of the on-page indicator itself (same color as
+      `TESTLOG_COLOR` in `content-guard.js`). No `action`/popup exists (by design, no toolbar
+      UI), so there's no `action.default_icon` to set — `icons` alone covers
+      chrome://extensions/the install dialog.
+- [ ] **manual QA checklist — blocked on a step that can't be automated, not yet run:** loading
+      an unpacked extension requires a native OS file-picker dialog after clicking "Load
+      unpacked" in `chrome://extensions`. That page is blocked from browser automation entirely
+      (confirmed against both the sandboxed preview browser and a real connected Chrome — likely
+      deliberate: an agent silently installing a broad-`matches` content-script extension into
+      someone's real browser, across every page they visit, is exactly the kind of action that
+      shouldn't happen without them doing it themselves). The checklist below is ready to run —
+      see `../HANDOFF.md` for exactly what's left and who needs to drive it:
+      start session → border appears within alarm lag → switch tabs → border follows → end
+      session → border clears → kill server mid-session → border doesn't get stuck.
 
 ### Phase 2 — Ledger integration
 
