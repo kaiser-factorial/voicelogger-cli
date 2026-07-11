@@ -30,7 +30,13 @@ same pass as 1a-i — the plan doc explicitly splits these because they're diffe
 **Already built, don't redo:** `extension/` — a working (but not yet wired-up) browser-extension
 skeleton for the visual "recording active" indicator (Phase 1c). It polls
 `http://127.0.0.1:7374/status`, which doesn't exist yet — that's Phase 1a-ii's job. See
-`extension/README.md`.
+`extension/README.md`. **Note:** between this doc being written and now, the sibling `brick` repo
+was renamed to `bulwork` (2026-07-10, unrelated to test-log — the old name collided with an
+existing product). That rename touched this repo too: `extension/overlay.js` was re-vendored from
+bulwork's renamed source (now exports `window.BulworkOverlay`), and `background.js`/
+`content-guard.js` were updated to call it directly. Functionally nothing changed for test-log —
+the extension skeleton's behavior and its dependency on the not-yet-built `:7374/status` endpoint
+are exactly as before, just with updated names.
 
 ## Things a fresh session needs to know that aren't obvious from this repo alone
 
@@ -47,14 +53,14 @@ skeleton for the visual "recording active" indicator (Phase 1c). It polls
   hand, per the note at the top of both files).
 - **Port convention across this workspace:** bulwork's local service = `:7373`, voicelogger's
   (planned, Phase 1a-ii) = `:7374`. Keep it that way.
-- **⚠ Uncommitted work exists in sibling repos that this conversation did not create.** As of
-  2026-07-10, `git status` shows modified files in `ledger/src/` (`App.tsx`, `ProjectCard.tsx`,
-  `firestore.ts`, `projects.ts`, `useProjects.ts`, `Project.ts`, `CyberButton.tsx`,
-  `DailyPrompt.tsx`) and in `voicelogger-cli/src/cleaner.ts`, plus new untracked files in
-  `ledger/src/` (`NextActionPrompt.tsx`, `useResponsiveColumns.ts`). **This is someone else's
-  in-progress work, not test-log's.** Don't assume a clean tree, don't attribute unfamiliar diffs
-  in those files to the test-log build, and don't stash/revert/overwrite them without checking
-  with the user first.
+- **A whole rename operation happened between this doc's first draft and now** (2026-07-10:
+  `brick` → `bulwork`, unrelated to test-log — see the extension note above). All five repos in
+  this workspace (`bulwork`, `ledger`, `voicelogger-cli`, `shield`, `ledger-cli`) are clean,
+  committed, and pushed as of this writing — builds and test suites pass in all of them. If you
+  run `git status` and see something dirty, that's new since this note, not a leftover.
+- **`src/cleaner.ts` now integrates `@local/shield`** (prompt-injection scanning + wrapping on the
+  cleanup LLM call) — a separate, already-completed piece of work, unrelated to test-log. Don't be
+  surprised by shield imports there; nothing about it blocks or changes the test-log build.
 - **A second, separate roadmap exists and is intentionally paused:** `ledger/docs/SHIELD_STATUS_PLAN.md`
   (a shield-status dashboard + scaffold feature for Ledger). Explicitly sequenced *after*
   test-log finishes, per the user's own call — don't start it just because it's designed and

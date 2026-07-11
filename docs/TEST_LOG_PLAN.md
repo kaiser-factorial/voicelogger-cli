@@ -130,6 +130,14 @@ Doesn't need Ledger.
       change," so activating a *new* tab during an already-active session never told that tab to
       show the border; (b) a stale comment claiming the launcher (1b) serves `:7374/status` when
       the plan actually assigns that to 1a
+- [x] **re-vendored after an unrelated rename** (2026-07-10): the sibling `brick` repo this
+      overlay primitive is vendored from was renamed to `bulwork` (name collision with an existing
+      product, nothing to do with test-log). `overlay.js` was re-copied from bulwork's renamed
+      source (now `window.BulworkOverlay`, with the vendoring-rationale header updated to match),
+      and `background.js`/`content-guard.js` were updated to call it directly. No behavior change
+      for test-log — same skeleton, same dependency on the not-yet-built `:7374/status` endpoint,
+      just current names. If you're diffing against an older version of this repo and see
+      `BulworkOverlay` where you expected `BrickOverlay`, that's why.
 - [ ] wire up for real once Phase 1a's status/control server exists. Not literally "zero changes"
       as originally claimed here — expect to actually exercise (and likely adjust) the polling
       logic against a real server, especially the ~60s alarm-driven lag on session start. Keeping
