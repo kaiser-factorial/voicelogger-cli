@@ -6,6 +6,8 @@ import { cleanTranscript } from "./cleaner.js";
 import { ingestCleanedLog, queryProjectContext } from "./mem.js";
 import { cleanedBaseName } from "./slug.js";
 import { readRawBody, writeSession } from "./store.js";
+/** Project-context depth: test-log mode leans more heavily on it than a plain voice log. */
+const TEST_LOG_CONTEXT_LIMIT = 8;
 /** Whether credentials are available for the cleaning pass (Anthropic or a configured LLM endpoint). */
 export function hasAnthropicAuth() {
     if (config.llmBaseUrl)
@@ -26,18 +28,29 @@ function uniqueCleanedPath(base) {
  * the cleaned markdown. Throws if the raw transcript is empty.
  *
  * Shared by the `clean` command and `record`'s auto-clean step so both produce
- * identical output.
+ * identical output. The test-log variant (template, project-context depth, speaker)
+ * is read straight from `session.testLog`/`session.speaker` — captured at the source
+ * by `record --test-log` (see session.ts) — so a deferred `voicelogger clean <session>`
+ * run picks the right variant too, not just the same-invocation auto-clean.
  */
 export async function runClean(session) {
     const body = await readRawBody(session);
     if (!body)
         throw new Error("raw transcript is empty — nothing to clean");
+    const { testLog, speaker } = session;
+    const templatePath = testLog ? config.testLogTemplatePath : config.templatePath;
     const [glossary, template, projectContext] = await Promise.all([
         readFile(config.glossaryPath, "utf8").catch(() => ""),
-        readFile(config.templatePath, "utf8").catch(() => ""),
-        queryProjectContext(session),
+        readFile(templatePath, "utf8").catch(() => ""),
+        queryProjectContext(session, testLog ? TEST_LOG_CONTEXT_LIMIT : undefined),
     ]);
-    const { title, summary, cleaned } = await cleanTranscript(body, { glossary, template, projectContext });
+    const { title, summary, cleaned } = await cleanTranscript(body, {
+        glossary,
+        template,
+        projectContext,
+        testLog,
+        speaker,
+    });
     await mkdir(config.cleanedDir, { recursive: true });
     // Name the cleaned file from the LLM title + date (e.g. test_with_music_27June2026.md).
     // Keep an already-friendly name on re-clean; but if it's still the legacy timestamp name
@@ -53,7 +66,7 @@ export async function runClean(session) {
             await rm(session.cleanedPath, { force: true });
         }
     }
-    const header = [
+    const headerLines = [
         `# ${title}`,
         "",
         `> ${summary}`,
@@ -62,11 +75,14 @@ export async function runClean(session) {
         `- source: ${session.source}`,
         `- project: ${session.projectId ?? "(unlinked)"}`,
         `- cleaned from: ${session.rawPath}`,
-        "",
-        "---",
-        "",
-        "",
-    ].join("\n");
+    ];
+    if (testLog) {
+        headerLines.push(`- test-log: narrator ${speaker ?? "dev"}, scope ${session.scope ?? "full"}`);
+        if (session.featureNote)
+            headerLines.push(`- feature: ${session.featureNote}`);
+    }
+    headerLines.push("", "---", "", "");
+    const header = headerLines.join("\n");
     const markdown = header + cleaned.trim() + "\n";
     await writeFile(cleanedPath, markdown);
     session.cleanedPath = cleanedPath;

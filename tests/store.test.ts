@@ -71,6 +71,26 @@ test("readRawBody returns the whole trimmed file when there is no divider", asyn
   assert.equal(out, "just a body, no header");
 });
 
+test("listSessions parses a legacy session file that predates testLog/speaker/scope/featureNote", async () => {
+  // Regression for docs/TEST_LOG_PLAN.md Phase 1a-ii: adding optional fields to
+  // VoiceLogSession/TranscriptSegment must not break list/show/clean on old
+  // sessions/*.json files that were written before those fields existed.
+  writeSess({
+    id: "2025-legacy-00-00-00Z",
+    startedAt: "2025-12-31T00:00:00Z",
+    source: "laptop",
+    rawPath: "x",
+    status: "cleaned",
+    summary: "a plain voice log from before test-log mode existed",
+  });
+  const session = await resolveSession("2025-legacy-00-00-00Z");
+  assert.ok(session);
+  assert.equal(session?.testLog, undefined);
+  assert.equal(session?.speaker, undefined);
+  assert.equal(session?.scope, undefined);
+  assert.equal(session?.featureNote, undefined);
+});
+
 test("writeSession round-trips a session into the index", async () => {
   await writeSession({
     id: "2026-03-03T00-00-00Z",

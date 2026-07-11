@@ -5,12 +5,15 @@
 // that file's header for why this is a copy and not a shared import). This worker holds no
 // secrets and runs no AI: it only asks "is test-log recording right now?" and relays the answer.
 //
-// STATUS ENDPOINT (not built yet — this extension is a skeleton ahead of the server side):
-//   GET http://127.0.0.1:7374/status  ->  { "active": boolean }
+// STATUS ENDPOINT (built in Phase 1a-ii, src/testLogServer.ts):
+//   GET http://127.0.0.1:7374/status  ->  { "active": boolean, ... }
 // Owned by the test-log recording session itself (Phase 1a), live for the duration of that
 // session whether started directly or via the `test <path>` launcher (Phase 1b) — not a
-// persistent background daemon. Until that endpoint exists, fetch() below fails closed to
-// inactive, same as it will once voicelogger isn't running. See ../docs/TEST_LOG_PLAN.md.
+// persistent background daemon. Requires an X-Voicelogger-Client header (same defense-in-depth
+// as bulwork's X-Bulwork-Client: a localhost port is reachable by any web page, so a required
+// custom header forces a CORS preflight that only this extension's origin passes). When
+// voicelogger isn't running, or on any other fetch failure, this fails closed to inactive —
+// see ../docs/TEST_LOG_PLAN.md.
 //
 // POLLING CADENCE: MV3 `chrome.alarms` has a 1-minute floor once this extension is packed
 // (unpacked/dev-mode Chrome allows shorter periods, but don't rely on that difference). That
@@ -25,7 +28,7 @@ let lastActive = false;
 
 async function fetchActive() {
   try {
-    const res = await fetch(STATUS_URL);
+    const res = await fetch(STATUS_URL, { headers: { "X-Voicelogger-Client": "extension" } });
     if (res.ok) {
       const data = await res.json();
       return !!data.active;

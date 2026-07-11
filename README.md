@@ -114,6 +114,9 @@ voicelogger record --no-clean            # keep raw only
 voicelogger record --clean prompt        # ask before cleaning
 voicelogger record --project myproject   # tag the session with a project id
 voicelogger record --app myapp           # record + copy into a registered app dir
+voicelogger record --test-log            # narrate QA-testing observations (see below)
+voicelogger record --test-log --user al  # tag the narrator (metadata only, no diarization)
+voicelogger record --test-log --feature "checkout flow"   # scope to one feature
 
 # Browsing
 voicelogger list                         # all sessions, newest first
@@ -168,6 +171,21 @@ The cleaned file is printed styled in the terminal right when the recording fini
 | `VOICELOGGER_AUTOCLEAN=off` | skip by default (override per-recording with `--clean`) |
 
 No LLM configured? voicelogger keeps the raw transcript and tells you how to clean it later.
+
+**Test-log mode (`--test-log`):** for narrating QA-testing observations rather than a plain
+voice log. Uses a QA-shaped template (scope / observations / issues found / decisions / next
+steps), leans more heavily on project context, and tolerates the large silence gaps that come
+from clicking through a UI instead of talking continuously. `--user <name>` (default `dev`) tags
+the narrator for best-effort speaker attribution in the cleaned note — metadata only, not real
+speaker diarization. `--title <t>` labels the session; `--scope <full|feature>` and
+`--feature <note>` scope it to one feature (an explicit `--feature` with no `--scope` implies
+`feature`). All of this is captured on the session, so a later `voicelogger clean` still picks
+the right variant even if auto-clean was skipped.
+
+`--test-log` also starts a local control server on `http://127.0.0.1:7374` for the recording's
+duration — `GET /status` and `POST /stop`, both requiring an `X-Voicelogger-Client` header. It's
+what the browser extension indicator (`extension/`) and, later, other tools poll/control a
+session with — see `docs/TEST_LOG_PLAN.md` for the full design.
 
 **LLM provider options:**
 

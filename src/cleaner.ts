@@ -40,6 +40,19 @@ export interface CleanInputs {
   template: string;
   /** Recent notes from the Memory Hub for this project — injected as extra context. */
   projectContext?: string;
+  /**
+   * True when this is a test-log recording (narrated QA observations) rather than
+   * a plain voice log — see `docs/TEST_LOG_PLAN.md`. Adjusts the system prompt:
+   * heavier reliance on project context, tolerance for large silence gaps (the
+   * speaker is clicking through a UI, not talking continuously), and best-effort
+   * multi-speaker attribution. Never triggers real diarization (locked decision #2).
+   */
+  testLog?: boolean;
+  /**
+   * The narrator's name (default "dev"), metadata only — used for best-effort
+   * speaker attribution in test-log mode. Ignored when `testLog` is falsy.
+   */
+  speaker?: string;
 }
 
 export async function cleanTranscript(
@@ -151,9 +164,18 @@ async function cleanWithOpenAICompat(rawBody: string, inputs: CleanInputs): Prom
   };
 }
 
-function buildSystemPrompt({ glossary, template, projectContext }: CleanInputs): string {
+/** Exported for tests — pure string construction, no network calls. */
+export function buildSystemPrompt({
+  glossary,
+  template,
+  projectContext,
+  testLog,
+  speaker,
+}: CleanInputs): string {
   const lines = [
-    "You clean raw voice-log transcripts.",
+    testLog
+      ? "You clean raw transcripts narrated while someone manually QA-tests a project."
+      : "You clean raw voice-log transcripts.",
     "The input is a rough speech-to-text transcript: it has disfluencies, false starts,",
     "and mis-transcribed technical terms.",
     "",
@@ -164,6 +186,29 @@ function buildSystemPrompt({ glossary, template, projectContext }: CleanInputs):
     "   never invent facts, decisions, or next steps that weren't said.",
     "4. Omit any template section that has no content rather than padding it.",
     "5. Write clear, concise prose in the speaker's first-person voice.",
+  ];
+
+  if (testLog) {
+    lines.push(
+      "",
+      "This is a test-log recording: the speaker is narrating observations while clicking",
+      "through the project being tested, not delivering a continuous monologue. Keep this in mind:",
+      "6. Large gaps between segments are expected (the speaker was reading, clicking, or waiting",
+      "   on the app, not talking) — never read a gap itself as a topic change, a dropped thought,",
+      "   or something to flag; just continue organizing the surrounding speech normally.",
+      "7. Rely more heavily on the project context below than you would for a plain voice log —",
+      "   it's what tells you what feature/area is under test and what prior issues to relate",
+      "   new observations to.",
+      `8. The primary narrator is "${speaker ?? "dev"}" — attribute observations to them by`,
+      "   default. If the transcript clearly shows a second person speaking (e.g. a pair-testing",
+      "   session, someone else answering a question), attribute those parts to that person",
+      "   instead using whatever the transcript calls them. This is best-effort from context only —",
+      "   there is no real speaker diarization, so don't fabricate speaker turns that aren't evident",
+      "   in the text itself.",
+    );
+  }
+
+  lines.push(
     "",
     "Return `title` (3–6 plain words for the filename), `summary` (one sentence), and `cleaned`",
     "(the Markdown body, with no title heading).",
@@ -173,12 +218,14 @@ function buildSystemPrompt({ glossary, template, projectContext }: CleanInputs):
     "",
     "=== TEMPLATE (structure for the cleaned body) ===",
     template.trim() || "(no template provided — use sensible sections)",
-  ];
+  );
 
   if (projectContext?.trim()) {
     lines.push(
       "",
-      "=== PROJECT CONTEXT (recent notes from the same project — use for domain terms and continuity) ===",
+      testLog
+        ? "=== PROJECT CONTEXT (recent notes from the same project — lean on this for what's under test) ==="
+        : "=== PROJECT CONTEXT (recent notes from the same project — use for domain terms and continuity) ===",
       projectContext.trim(),
     );
   }

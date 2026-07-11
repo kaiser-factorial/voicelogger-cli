@@ -10,6 +10,7 @@ import { confirm, promptProject } from "../prompt.js";
 import { SessionRecorder } from "../session.js";
 import { setupApiKey } from "../setupKey.js";
 import { LaptopMicSource } from "../sources/LaptopMicSource.js";
+import { startTestLogServer } from "../testLogServer.js";
 import { readRawBody, writeSession } from "../store.js";
 import { optValue } from "./util.js";
 /**
@@ -18,12 +19,39 @@ import { optValue } from "./util.js";
  * disabled, runs the LLM cleaning pass and prints the edited markdown.
  *
  *   voicelogger record [--project <id>] [--no-clean | --clean [auto|prompt|off]] [--app <name>]
+ *                      [--test-log] [--user <name>] [--title <t>] [--scope <full|feature>]
+ *                      [--feature <note>]
+ *
+ * `--test-log` also starts the local control server on :7374 for the session's duration
+ * (status + stop, for the browser extension indicator and Ledger — see testLogServer.ts
+ * and docs/TEST_LOG_PLAN.md Phase 1a-ii). It runs whether this invocation is interactive
+ * (a human at a terminal) or spawned headlessly by the future launcher/Ledger — starting a
+ * session is always this CLI invocation itself, the server only covers status/stop for a
+ * caller outside this process.
  */
 export async function recordCommand(args) {
     const projectId = optValue(args, "--project", "-p");
+    const testLog = args.includes("--test-log");
+    const speaker = testLog ? (optValue(args, "--user") ?? "dev") : undefined;
+    const title = testLog ? optValue(args, "--title") : undefined;
+    const scopeArg = testLog ? optValue(args, "--scope") : undefined;
+    const featureNote = testLog ? optValue(args, "--feature") : undefined;
+    // An explicit --feature with no --scope clearly means "scope: feature", not "full scan".
+    const scope = testLog
+        ? scopeArg === "full" || scopeArg === "feature"
+            ? scopeArg
+            : featureNote
+                ? "feature"
+                : "full"
+        : undefined;
     const source = new LaptopMicSource();
     const recorder = new SessionRecorder(source, {
         projectId,
+        testLog,
+        speaker,
+        title,
+        scope,
+        featureNote,
         onSegment: (seg) => process.stdout.write(`  ▸ ${seg.text}\n`),
     });
     // Show session info immediately; "Speak now" prints only after the mic is live
@@ -32,9 +60,9 @@ export async function recordCommand(args) {
     console.log(`  raw:     ${recorder.session.rawPath}`);
     console.log(`  mic:     ${micLabel(process.platform, config.micFormat, config.micDevice)}`);
     console.log(`  project: ${projectId ?? "(unlinked)"}`);
-    console.log("\n□  wait — mic initializing…");
-    await recorder.start();
-    console.log("\n● Speak now. Press Enter (or Ctrl-C) to stop.\n");
+    if (testLog)
+        console.log(`  test-log: narrator ${speaker}, scope ${scope}`);
+    let server;
     let stopped = false;
     const finish = async () => {
         if (stopped)
@@ -48,6 +76,7 @@ export async function recordCommand(args) {
             console.log("\n✓ done");
             console.log(`  raw:   ${session.rawPath}`);
             console.log(`  index: ${config.sessionsDir}/${session.id}.json`);
+            await server?.close();
             await maybeAutoClean(session, args);
             await maybePromptProject(session);
             await maybePushToApp(session, args);
@@ -58,6 +87,24 @@ export async function recordCommand(args) {
             process.exit(1);
         }
     };
+    // Bind the control server before touching the mic — if :7374 is already taken (another
+    // test-log session is running), fail fast without ever starting to record.
+    if (testLog) {
+        try {
+            server = await startTestLogServer({
+                getSession: () => recorder.session,
+                requestStop: () => void finish(),
+            });
+            console.log(`  control: http://127.0.0.1:${server.port} (status, stop)`);
+        }
+        catch (err) {
+            console.error(`\n✗ ${err instanceof Error ? err.message : err}`);
+            process.exit(1);
+        }
+    }
+    console.log("\n□  wait — mic initializing…");
+    await recorder.start();
+    console.log("\n● Speak now. Press Enter (or Ctrl-C) to stop.\n");
     process.stdin.resume();
     process.stdin.once("data", finish);
     process.on("SIGINT", finish);

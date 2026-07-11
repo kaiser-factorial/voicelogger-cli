@@ -37,11 +37,22 @@ const COMMANDS: Command[] = [
     group: "Record",
     short: "capture a new voice log",
     summary: "record the mic until Enter/Ctrl-C, then auto-clean",
-    usage: "voicelogger record [--project <id>] [--app <name>] [--no-clean | --clean <mode>]",
+    usage:
+      "voicelogger record [--project <id>] [--app <name>] [--no-clean | --clean <mode>] " +
+      "[--test-log] [--user <name>] [--title <t>] [--scope <full|feature>] [--feature <note>]",
     options: `  --project <id>   tag the session with a project id
   --app <name>     after cleanup, push the logs into a registered app (see 'app')
   --no-clean       keep the raw transcript only (skip the LLM clean)
-  --clean <mode>   cleanup mode: auto (default) | prompt | off`,
+  --clean <mode>   cleanup mode: auto (default) | prompt | off
+  --test-log       narrating QA-testing observations — heavier project context, tolerant
+                   of silence gaps, best-effort speaker attribution (see --user). Also
+                   starts a local control server on :7374 (GET /status, POST /stop) for
+                   the session's duration.
+  --user <name>    test-log narrator name, metadata only, no diarization (default: dev)
+  --title <t>      test-log session label (Ledger's future title/subtitle field)
+  --scope <s>      test-log scope: full (default) | feature — auto-set to 'feature' if
+                   --feature is given without --scope
+  --feature <note> test-log feature/topic under test (seeds Ledger's future dropdown)`,
     run: recordCommand,
   },
   {

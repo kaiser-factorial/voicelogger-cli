@@ -18,6 +18,7 @@ export { transcribePcm } from "./transcriber.js";
 export { pcmToWav, pcmDurationMs } from "./wav.js";
 export { cleanTranscript } from "./cleaner.js";
 export { runClean, hasAnthropicAuth } from "./cleanSession.js";
+export { startTestLogServer, } from "./testLogServer.js";
 export { loadUserConfig, saveUserConfig, configFilePath, applyStoredEnv, } from "./userConfig.js";
 export { setupApiKey } from "./setupKey.js";
 export { loadApps, getApp, upsertApp, removeApp, appsFilePath, } from "./apps.js";

@@ -23,6 +23,8 @@ export interface Config {
     cleanMaxTokens: number;
     glossaryPath: string;
     templatePath: string;
+    /** Template for `record --test-log` sessions (see docs/TEST_LOG_PLAN.md). */
+    testLogTemplatePath: string;
     /** How `record` handles cleaning on finish (VOICELOGGER_AUTOCLEAN). Default "auto". */
     autoCleanMode: CleanMode;
     /** Base URL for an OpenAI-compatible endpoint. Empty = use Anthropic SDK. */

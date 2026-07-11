@@ -71,32 +71,70 @@ No OS-level UI, no launcher dependency — ships first, useful standalone. **Two
 different-sized deliverables — don't treat this as one lump:**
 
 **1a-i (small): mode + prompt**
-- [ ] decide the mode's naming *before* starting (`test-log` subcommand vs. `record --test-log`
-      flag) — this is a precursor decision, not a TBD to leave dangling mid-implementation
-- [ ] cleaner prompt variant: heavier project context, tolerance for large silence gaps,
+- [x] decide the mode's naming *before* starting (`test-log` subcommand vs. `record --test-log`
+      flag) — this is a precursor decision, not a TBD to leave dangling mid-implementation.
+      **Decided: `record --test-log` flag**, not a subcommand. The mode reuses the entire
+      existing recording pipeline (mic capture, SIGINT handling, auto-clean, `--app` push) —
+      a subcommand would duplicate most of `record.ts` just to vary the cleaner prompt and add
+      metadata. `record` already has flag-driven variants (`--clean <mode>`, `--project`,
+      `--app`); `--test-log` + `--user <name>` fit that pattern.
+- [x] cleaner prompt variant: heavier project context, tolerance for large silence gaps,
       multi-speaker awareness
-- [ ] `--user <name>` flag (default speaker "dev") — metadata only, see decision #2
+- [x] `--user <name>` flag (default speaker "dev") — metadata only, see decision #2. **Scope
+      note:** since session-index storage changes are 1a-ii's job, `--test-log`/`--user` are
+      read straight from `record`'s own `args` and passed directly into the same-process
+      auto-clean call — they don't yet survive to a later `voicelogger clean <session>` run.
+      That's fine for now (recording auto-cleans by default) but 1a-ii's schema/storage work
+      should persist them onto the session so a deferred `clean` still gets the right variant.
 
-**1a-ii (cross-cutting, bigger than it looks): storage + control surface + server**
-- [ ] add optional `speaker` field to `TranscriptSegment`; version the session-index schema so
-      existing `sessions/*.json` files without the field don't break `list`/`show`/`clean`
-- [ ] **VL→Ledger / VL→launcher control surface** — not just `GET /status`. Something has to
-      start/stop a session with metadata (title, scope, feature-note, speaker) from outside the
-      CLI process itself, or Phase 2's "thin Ledger modal" has nothing to call. Define this now
-      (likely more HTTP endpoints on the same local server, or a documented CLI-invocation
-      contract) even though Phase 2 is later — the shape of Phase 1a's server depends on it.
-- [ ] a feature-note field on session metadata, captured at the source, so Ledger's future
-      "Feature" dropdown (Phase 2) has real data to read from day one
-- [ ] local status server on `:7374` — `GET /status` → `{ "active": boolean }` plus whatever the
-      control-surface item above needs. Live for the duration of a test-log session. **Owned
-      here, not by the launcher** — indicator state tracks recording state, which can happen with
-      or without the launcher.
-- [ ] server lifecycle edge cases: port already in use, clean teardown on Ctrl-C/crash (a stale
-      server left listening after a crash must not keep answering `active: true` forever — that's
-      a stuck border, not a missing one), behavior if a second session tries to start while one's
-      already running
-- [ ] tests: new mode's prompt construction, the server's start/stop/status behavior, schema
-      migration for old session-index files without `speaker`
+**1a-ii (cross-cutting, bigger than it looks): storage + control surface + server — done
+2026-07-10/11**
+- [x] add optional `speaker` field to `TranscriptSegment`; version the session-index schema so
+      existing `sessions/*.json` files without the field don't break `list`/`show`/`clean`.
+      **No `schemaVersion` counter added** — the new fields (`speaker` on `TranscriptSegment`;
+      `testLog`/`speaker`/`title`/`scope`/`featureNote` on `VoiceLogSession`) are all optional
+      and nothing reads them unconditionally, so old files parse as-is (`JSON.parse` + optional
+      fields = free backward compat). Verified with a regression test (`tests/store.test.ts`)
+      using a hand-written legacy-shaped session file. A version counter would be overkill for a
+      purely-additive change — add one later if a field ever needs a *breaking* reshape.
+- [x] **VL→Ledger / VL→launcher control surface — resolved as a hybrid, not pure REST or pure
+      CLI-invocation:** starting a session is a **CLI invocation** — `voicelogger record
+      --test-log [--project] [--user] [--title] [--scope] [--feature]` — run directly by a
+      human, or spawned by the future launcher/Ledger; there's no `POST /start`, because before
+      a session exists there's no process to receive one. Stopping and status are **HTTP**, on
+      the local server below, because a caller outside this process (Ledger, the extension) may
+      not hold this process's stdin/PID. See `src/testLogServer.ts`.
+- [x] a feature-note field on session metadata, captured at the source (`--feature <note>`,
+      stored as `VoiceLogSession.featureNote`), so Ledger's future "Feature" dropdown (Phase 2)
+      has real data to read from day one. `--scope` (`full`/`feature`) came along with it since
+      Ledger's modal pairs the two; an explicit `--feature` with no `--scope` infers `"feature"`
+      rather than defaulting to `"full"`.
+- [x] local status server on `:7374` — `GET /status` → `{ active, sessionId, startedAt,
+      projectId?, title?, scope?, speaker?, featureNote? }` (`active` is derived from
+      `session.status === "recording"`, not a separately-tracked flag) plus `POST /stop`
+      (fire-and-forget graceful stop, same code path as Enter/Ctrl-C — responds immediately,
+      auto-clean proceeds in the background exactly like the interactive flow). **Owned by the
+      `record --test-log` process itself, not the launcher** — starts before the mic does (see
+      next item), lives only for that one session, whether invoked directly or via the future
+      launcher. Auth: requires an `X-Voicelogger-Client` header on every request, mirroring
+      bulwork's `X-Bulwork-Client` (a localhost port is reachable by any web page). Updated
+      `extension/background.js` to send it.
+- [x] server lifecycle edge cases:
+      - **Port already in use** → bound *before* `recorder.start()`, so a busy `:7374` fails fast
+        with a clear message and never touches the mic. Verified manually (occupied :7374, ran
+        `record --test-log`, confirmed it errored before "mic initializing…").
+      - **Second session while one's running** → same mechanism as above: starting a session
+        *is* claiming the port, so a second `record --test-log` simply can't bind it. No
+        separate "is one already running" check needed.
+      - **Stale server after a crash** → not possible by construction: the server lives inside
+        the recording process, so the OS reclaims the port the instant that process exits or is
+        killed, for any reason. No PID file, no separate liveness/heartbeat logic.
+- [x] tests: `tests/testLogServer.test.ts` (auth header, `/status` shape, `active` semantics,
+      `/stop`, EADDRINUSE), `tests/session.test.ts` (metadata captured at construction),
+      `tests/store.test.ts` (legacy-file regression). Verified end-to-end manually too: a real
+      `record --test-log` session, `curl`'d `/status` and `/stop` against the real port, watched
+      it tear down cleanly (raw file + session index written correctly, port freed, process
+      exited).
 
 ### Phase 1b — `voicelogger test <path>` launcher
 
@@ -138,10 +176,15 @@ Doesn't need Ledger.
       for test-log — same skeleton, same dependency on the not-yet-built `:7374/status` endpoint,
       just current names. If you're diffing against an older version of this repo and see
       `BulworkOverlay` where you expected `BrickOverlay`, that's why.
-- [ ] wire up for real once Phase 1a's status/control server exists. Not literally "zero changes"
-      as originally claimed here — expect to actually exercise (and likely adjust) the polling
-      logic against a real server, especially the ~60s alarm-driven lag on session start. Keeping
-      poll-based (not switching to a pushed `chrome.runtime.connect` port) for v1 is a judgment
+- [ ] **unblocked as of 1a-ii** (2026-07-11): the real `:7374` server now exists and was manually
+      verified against `curl`. `background.js` was updated to send the now-required
+      `X-Voicelogger-Client` header (a small, in-scope fix caused directly by 1a-ii's auth
+      design — not itself "wiring up for real"). Still not done: an actual manual QA pass with
+      the extension loaded in a real browser against a real `record --test-log` session. Not
+      literally "zero changes" as originally claimed here — expect to actually exercise (and
+      likely adjust) the polling logic against a real server, especially the ~60s alarm-driven
+      lag on session start. Keeping poll-based (not switching to a pushed
+      `chrome.runtime.connect` port) for v1 is a judgment
       call worth revisiting once this is used for real: annoying lag at session *start* is
       probably tolerable for QA narration (you're not reacting in real time to the border itself),
       but say so explicitly rather than assuming it's fine.
@@ -181,5 +224,5 @@ and Phase 1a's control-surface shape** — don't start Phase 2 UI work until tho
 - Whether the launcher tears down the dev server it started when the test-log session ends
 - **Who writes the Firestore feature-note cache** (decision #6) — Ledger reading VL's local index
   directly, a new `ledger-cli` command, or an extension to `link`
-- Exact shape of the VL→Ledger/launcher control surface (Phase 1a-ii) — more REST endpoints vs. a
-  documented CLI-invocation contract
+- ~~Exact shape of the VL→Ledger/launcher control surface~~ — **resolved in Phase 1a-ii:** start
+  is CLI-invocation, stop/status is HTTP on `:7374`. See `src/testLogServer.ts`.

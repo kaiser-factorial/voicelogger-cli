@@ -5,8 +5,11 @@ import type { VoiceLogSession } from "./types.js";
  * so the cleaner understands domain terms and recent work on this project.
  * Returns undefined when the Hub is not configured, the project is unlinked,
  * or no relevant memories are found.
+ *
+ * `limit` defaults to 3 (plain voice logs); test-log mode passes a higher limit
+ * since it leans more heavily on project context (see docs/TEST_LOG_PLAN.md).
  */
-export declare function queryProjectContext(session: VoiceLogSession): Promise<string | undefined>;
+export declare function queryProjectContext(session: VoiceLogSession, limit?: number): Promise<string | undefined>;
 /**
  * Ingest a freshly-cleaned voice log into the Memory Hub.
  * Called after cleaning — seeds the flywheel so future sessions and BULWORK

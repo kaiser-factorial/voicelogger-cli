@@ -23,6 +23,11 @@ export { pcmToWav, pcmDurationMs } from "./wav.js";
 export { cleanTranscript, type CleanResult, type CleanInputs } from "./cleaner.js";
 export { runClean, hasAnthropicAuth, type CleanOutcome } from "./cleanSession.js";
 export {
+  startTestLogServer,
+  type TestLogServerDeps,
+  type TestLogServerHandle,
+} from "./testLogServer.js";
+export {
   loadUserConfig,
   saveUserConfig,
   configFilePath,

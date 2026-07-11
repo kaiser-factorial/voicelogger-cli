@@ -82,6 +82,8 @@ export const config = {
     cleanMaxTokens: posInt(process.env.CLEAN_MAX_TOKENS, 16000),
     glossaryPath: process.env.GLOSSARY_PATH ?? path.join(packageRoot, "cleaning", "glossary.md"),
     templatePath: process.env.TEMPLATE_PATH ?? path.join(packageRoot, "cleaning", "template.md"),
+    testLogTemplatePath: process.env.TEST_LOG_TEMPLATE_PATH ??
+        path.join(packageRoot, "cleaning", "test-log-template.md"),
     autoCleanMode: parseCleanMode(process.env.VOICELOGGER_AUTOCLEAN) ?? "auto",
     llmBaseUrl: process.env.LLM_BASE_URL ?? userCfg.llmBaseUrl ?? "",
     llmApiKey: process.env.LLM_API_KEY ?? userCfg.llmApiKey ?? "",

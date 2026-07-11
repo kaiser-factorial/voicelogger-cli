@@ -20,6 +20,21 @@ export interface CleanInputs {
     template: string;
     /** Recent notes from the Memory Hub for this project — injected as extra context. */
     projectContext?: string;
+    /**
+     * True when this is a test-log recording (narrated QA observations) rather than
+     * a plain voice log — see `docs/TEST_LOG_PLAN.md`. Adjusts the system prompt:
+     * heavier reliance on project context, tolerance for large silence gaps (the
+     * speaker is clicking through a UI, not talking continuously), and best-effort
+     * multi-speaker attribution. Never triggers real diarization (locked decision #2).
+     */
+    testLog?: boolean;
+    /**
+     * The narrator's name (default "dev"), metadata only — used for best-effort
+     * speaker attribution in test-log mode. Ignored when `testLog` is falsy.
+     */
+    speaker?: string;
 }
 export declare function cleanTranscript(rawBody: string, inputs: CleanInputs): Promise<CleanResult>;
+/** Exported for tests — pure string construction, no network calls. */
+export declare function buildSystemPrompt({ glossary, template, projectContext, testLog, speaker, }: CleanInputs): string;
 export {};

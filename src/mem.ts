@@ -24,8 +24,14 @@ interface MemQueryResponse {
  * so the cleaner understands domain terms and recent work on this project.
  * Returns undefined when the Hub is not configured, the project is unlinked,
  * or no relevant memories are found.
+ *
+ * `limit` defaults to 3 (plain voice logs); test-log mode passes a higher limit
+ * since it leans more heavily on project context (see docs/TEST_LOG_PLAN.md).
  */
-export async function queryProjectContext(session: VoiceLogSession): Promise<string | undefined> {
+export async function queryProjectContext(
+  session: VoiceLogSession,
+  limit = 3,
+): Promise<string | undefined> {
   const bin = binParts();
   if (!bin || !session.projectId) return undefined;
 
@@ -35,7 +41,7 @@ export async function queryProjectContext(session: VoiceLogSession): Promise<str
       [
         ...bin.base,
         "query", session.projectId,
-        "--limit", "3",
+        "--limit", String(limit),
         "--json",
         "--tags", session.projectId,
       ],

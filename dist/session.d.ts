@@ -1,9 +1,15 @@
 import type { VoiceSource } from "./sources/VoiceSource.js";
-import type { TranscriptSegment, VoiceLogSession } from "./types.js";
+import type { TestLogScope, TranscriptSegment, VoiceLogSession } from "./types.js";
 export interface SessionOptions {
     projectId?: string;
     /** Called as each transcribed segment is appended (for live display). */
     onSegment?: (seg: TranscriptSegment) => void;
+    /** `record --test-log` metadata, captured at the source — see docs/TEST_LOG_PLAN.md. */
+    testLog?: boolean;
+    speaker?: string;
+    title?: string;
+    scope?: TestLogScope;
+    featureNote?: string;
 }
 /**
  * Orchestrates one recording session:

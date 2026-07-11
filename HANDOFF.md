@@ -5,38 +5,54 @@
 
 ---
 
-## ▶ Next up — Test-log mode, Phase 1a-i
+## ▶ Next up — Test-log mode, Phase 1b
 
-**Where we are (2026-07-10):** design phase for "test-log mode" (a dedicated recording mode for
-narrating QA-testing observations, plus a project launcher, plus a thin Ledger UI on top) is
-locked and phased. **The plan doc is the source of truth — read it before writing any code:**
+**Where we are (2026-07-10):** Phase 1a is fully done — both 1a-i (mode + prompt) and 1a-ii
+(storage + control surface + server). `record --test-log` (a flag, not a subcommand — see the
+naming rationale in `docs/TEST_LOG_PLAN.md`'s Phase 1a-i checklist) is a complete, tested,
+manually-verified feature:
+
+- QA-narration cleaner variant (`cleaning/test-log-template.md`), heavier project context
+  (`mem.ts`'s `queryProjectContext` takes a `limit`; test-log passes 8 vs. the default 3),
+  silence-gap tolerance, `--user <name>` (default `dev`) for best-effort speaker attribution —
+  metadata only, no diarization, per locked decision #2.
+- `--title`/`--scope`/`--feature` flags; all test-log metadata (`testLog`, `speaker`, `title`,
+  `scope`, `featureNote`) is captured at the source onto `VoiceLogSession` (`session.ts`) — the
+  **1a-i scope gap is closed**: `voicelogger clean <session>` run later now picks the right
+  variant too, since `cleanSession.ts`'s `runClean` reads it straight from the session, no
+  separate opts param.
+- The `:7374` control server (`src/testLogServer.ts`): `GET /status`, `POST /stop`, required
+  `X-Voicelogger-Client` auth header (mirrors bulwork's `X-Bulwork-Client`). Bound *before* the
+  mic starts, so a port conflict fails fast without ever touching audio — this doubles as the
+  "second session already running" check, since starting a session IS claiming the port. A
+  crash can't leave a stale server: it lives inside the recording process, so the OS reclaims
+  the port the instant that process is gone, no PID file needed.
+- `extension/background.js` updated to send the new required header (small, necessary fix — not
+  Phase 1c's actual "wire up for real" pass, which is still open).
+- Tests: `tests/testLogServer.test.ts`, `tests/session.test.ts`, `tests/cleaner.test.ts`,
+  `tests/store.test.ts` (legacy-file regression). Plus a manual end-to-end pass: real mic
+  recording, `curl`'d `/status` and `/stop` against the live port, confirmed clean teardown.
+
+**The plan doc is the source of truth — read it before writing any code:**
 
 - **`docs/TEST_LOG_PLAN.md`** — full design: locked decisions (don't re-litigate these without a
   reason — each one has a stated "why"), phase-by-phase checklist, backlog, open questions. It was
   written carefully to stand alone; if anything in it seems to assume context you don't have,
   that's a bug in the doc, not a gap you need to fill from memory of a prior session.
 
-**Concrete next action:** start Phase 1a-i (small, see the plan doc's phasing section) —
-1. Decide the mode's naming (`test-log` subcommand vs. `record --test-log` flag) — a precursor
-   decision, make it before writing code, not mid-implementation.
-2. Build the cleaner prompt variant: heavier project context, tolerance for large silence gaps,
-   multi-speaker awareness, `--user <name>` flag (metadata only — **no diarization**, see locked
-   decision #2 in the plan doc for why, and the seam to leave for later).
+**Concrete next action:** start Phase 1b, the `voicelogger test <path>` launcher (see the plan
+doc's phasing section) — deterministic project-type detection (no hard dependency on a coding
+agent being present, per locked decision #7), a launch-recipe cache extending `apps.json` (exact
+schema is an open question, resolve before/during 1b), dev-server readiness checking before
+opening the URL, and an LLM-summarized error/handoff path on launch failure (explicitly *not*
+codebase-aware fix suggestions — see the backlog). The launcher spawns `record --test-log`
+itself rather than reimplementing recording — Phase 1a already owns start/stop/status.
 
-Do **not** start Phase 1a-ii (storage schema + control surface + status server) as part of the
-same pass as 1a-i — the plan doc explicitly splits these because they're differently sized; see
-"Phase 1a" in `docs/TEST_LOG_PLAN.md`.
-
-**Already built, don't redo:** `extension/` — a working (but not yet wired-up) browser-extension
-skeleton for the visual "recording active" indicator (Phase 1c). It polls
-`http://127.0.0.1:7374/status`, which doesn't exist yet — that's Phase 1a-ii's job. See
-`extension/README.md`. **Note:** between this doc being written and now, the sibling `brick` repo
-was renamed to `bulwork` (2026-07-10, unrelated to test-log — the old name collided with an
-existing product). That rename touched this repo too: `extension/overlay.js` was re-vendored from
-bulwork's renamed source (now exports `window.BulworkOverlay`), and `background.js`/
-`content-guard.js` were updated to call it directly. Functionally nothing changed for test-log —
-the extension skeleton's behavior and its dependency on the not-yet-built `:7374/status` endpoint
-are exactly as before, just with updated names.
+**Phase 1c (browser extension) is unblocked but not done:** the real server it needs now exists
+and was manually verified; still open is an actual manual QA pass with the extension loaded in a
+real browser against a live session (see Phase 1c's checklist in the plan doc for what that
+covers, including the alarm-lag tradeoff). Pick this up whenever it's convenient — it doesn't
+block Phase 1b, and Phase 1b doesn't block it either.
 
 ## Things a fresh session needs to know that aren't obvious from this repo alone
 
@@ -52,7 +68,8 @@ are exactly as before, just with updated names.
   `../bulwork/extension/overlay.js`, not a shared import — if you change one, change the other by
   hand, per the note at the top of both files).
 - **Port convention across this workspace:** bulwork's local service = `:7373`, voicelogger's
-  (planned, Phase 1a-ii) = `:7374`. Keep it that way.
+  (`src/testLogServer.ts`, live only during a `record --test-log` session) = `:7374`. Keep it
+  that way.
 - **A whole rename operation happened between this doc's first draft and now** (2026-07-10:
   `brick` → `bulwork`, unrelated to test-log — see the extension note above). All five repos in
   this workspace (`bulwork`, `ledger`, `voicelogger-cli`, `shield`, `ledger-cli`) are clean,

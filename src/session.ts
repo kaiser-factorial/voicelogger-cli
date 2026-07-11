@@ -3,7 +3,7 @@ import path from "node:path";
 import { config } from "./config.js";
 import type { VoiceSource } from "./sources/VoiceSource.js";
 import { transcribePcm } from "./transcriber.js";
-import type { TranscriptSegment, VoiceLogSession } from "./types.js";
+import type { TestLogScope, TranscriptSegment, VoiceLogSession } from "./types.js";
 import { EnergyVad } from "./vad.js";
 
 // Per-process counter folded into session ids to guarantee uniqueness even for
@@ -14,6 +14,12 @@ export interface SessionOptions {
   projectId?: string;
   /** Called as each transcribed segment is appended (for live display). */
   onSegment?: (seg: TranscriptSegment) => void;
+  /** `record --test-log` metadata, captured at the source — see docs/TEST_LOG_PLAN.md. */
+  testLog?: boolean;
+  speaker?: string;
+  title?: string;
+  scope?: TestLogScope;
+  featureNote?: string;
 }
 
 /**
@@ -47,6 +53,11 @@ export class SessionRecorder {
       source: source.kind,
       rawPath: path.join(config.rawDir, `${id}.md`),
       status: "recording",
+      testLog: opts.testLog,
+      speaker: opts.speaker,
+      title: opts.title,
+      scope: opts.scope,
+      featureNote: opts.featureNote,
     };
   }
 
@@ -121,17 +132,20 @@ export class SessionRecorder {
 
   private rawHeader(): string {
     const s = this.session;
-    return [
+    const lines = [
       `# Voice log — ${s.id}`,
       "",
       `- started: ${s.startedAt}`,
       `- source: ${s.source}`,
       `- project: ${s.projectId ?? "(unlinked)"}`,
-      "",
-      "---",
-      "",
-      "",
-    ].join("\n");
+    ];
+    if (s.testLog) {
+      lines.push(`- mode: test-log (narrator: ${s.speaker ?? "dev"}, scope: ${s.scope ?? "full"})`);
+      if (s.title) lines.push(`- title: ${s.title}`);
+      if (s.featureNote) lines.push(`- feature: ${s.featureNote}`);
+    }
+    lines.push("", "---", "", "");
+    return lines.join("\n");
   }
 
   private async writeIndex(): Promise<void> {

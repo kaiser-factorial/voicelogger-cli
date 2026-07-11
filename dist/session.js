@@ -34,6 +34,11 @@ export class SessionRecorder {
             source: source.kind,
             rawPath: path.join(config.rawDir, `${id}.md`),
             status: "recording",
+            testLog: opts.testLog,
+            speaker: opts.speaker,
+            title: opts.title,
+            scope: opts.scope,
+            featureNote: opts.featureNote,
         };
     }
     async start() {
@@ -100,17 +105,22 @@ export class SessionRecorder {
     }
     rawHeader() {
         const s = this.session;
-        return [
+        const lines = [
             `# Voice log — ${s.id}`,
             "",
             `- started: ${s.startedAt}`,
             `- source: ${s.source}`,
             `- project: ${s.projectId ?? "(unlinked)"}`,
-            "",
-            "---",
-            "",
-            "",
-        ].join("\n");
+        ];
+        if (s.testLog) {
+            lines.push(`- mode: test-log (narrator: ${s.speaker ?? "dev"}, scope: ${s.scope ?? "full"})`);
+            if (s.title)
+                lines.push(`- title: ${s.title}`);
+            if (s.featureNote)
+                lines.push(`- feature: ${s.featureNote}`);
+        }
+        lines.push("", "---", "", "");
+        return lines.join("\n");
     }
     async writeIndex() {
         const indexPath = path.join(config.sessionsDir, `${this.session.id}.json`);
